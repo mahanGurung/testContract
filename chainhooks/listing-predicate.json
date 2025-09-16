@@ -1,0 +1,24 @@
+{
+    "name": "Scoping for listing",
+    "uuid": "f03aad4b-41e4-4fbb-87c0-dba604248d57",
+    "chain": "stacks",
+    "version": 1,
+    "networks": {
+      "devnet": {
+        "if_this": {
+          "scope": "contract_call",
+          "method": "list-asset-ft",
+          "contract_identifier": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.marketplace"
+        },
+        "then_that": {
+          "http_post": {
+            "url": "https://domain-terrain-favor-involving.trycloudflare.com/api/listing",
+            "authorization_header": ""
+          }
+        },
+        "start_block": 0,
+        "decode_clarity_values": true
+      }
+    }
+  }
+  
