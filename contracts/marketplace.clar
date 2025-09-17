@@ -80,6 +80,10 @@
 ;; This marketplace requires any contracts used for assets or payments to be whitelisted
 ;; by the contract owner of this (marketplace) contract.
 (define-map whitelisted-asset-contracts principal bool)
+(map-set whitelisted-asset-contracts .mock-token true)
+(map-set whitelisted-asset-contracts .non-whitelisted-ft true)
+
+
 
 (define-map active-protocol-contracts (buff 1) principal)
 (map-set active-protocol-contracts 0x00 .marketplace-admin)
@@ -225,8 +229,21 @@
     ))
     ;; Increment the nonce to use for the next unique listing ID
     (var-set listing-ft-nonce (+ listing-id u1))
+
+    (print {
+        topic: "listing-creation",
+        listing-id: listing-id,
+        amount: (get amt ft-asset),
+        price: (get price ft-asset),
+        expiry: (get expiry ft-asset),
+        maker: tx-sender,
+        taker: (get taker ft-asset),
+        asset-contract: ft-asset-contract,
+        payment-asset-contract: (get payment-asset-contract ft-asset)
+      })
+
     ;; Return the created listing ID
-    (ok listing-id)
+    (ok true)
   )
 )
 
@@ -248,6 +265,7 @@
     (map-delete listings-ft listing-id)
     ;; Transfer the FT from this contract's principal back to the creator's principal
     (as-contract (transfer-ft ft-asset-contract (get amt listing) tx-sender maker))
+
   )
 )
 
@@ -332,7 +350,7 @@
         maker: (get maker listing)
       })
       
-      (ok listing-id)
+      (ok true)
     )
   )
 )
@@ -387,7 +405,7 @@
         buyer: taker,
         seller: (get maker listing)
       })
-      (ok listing-id)
+      (ok true)
     )
     ;; If amount remains, update the listing
     (begin
@@ -413,7 +431,7 @@
         buyer: taker,
         seller: (get maker listing)
       })
-      (ok listing-id)
+      (ok true)
     )
   )
  )
@@ -474,7 +492,7 @@
         buyer: taker,
         seller: (get maker listing)
       })
-      (ok listing-id)
+      (ok true)
     )
     ;; If amount remains, update the listing
     (begin
@@ -500,7 +518,7 @@
         buyer: taker,
         seller: (get maker listing)
       })
-      (ok listing-id)
+      (ok true)
     )
   )
  )

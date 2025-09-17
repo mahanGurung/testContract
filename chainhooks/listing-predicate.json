@@ -12,7 +12,7 @@
         },
         "then_that": {
           "http_post": {
-            "url": "https://domain-terrain-favor-involving.trycloudflare.com/api/listing",
+            "url": "http://localhost:3000/api/listing",
             "authorization_header": ""
           }
         },
