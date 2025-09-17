@@ -172,7 +172,12 @@
   (begin
     (try! (assert-not-paused))
     (asserts! (is-eq (var-get contract-owner) tx-sender) ERR_UNAUTHORISED)
-    (ok (map-set whitelisted-asset-contracts asset-contract whitelisted))
+    (map-set whitelisted-asset-contracts asset-contract whitelisted)
+    (print {
+            whitelisted: asset-contract,
+            isWhitelisted: whitelisted
+          })
+    (ok true)
   )
 )
 
