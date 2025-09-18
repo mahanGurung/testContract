@@ -392,18 +392,18 @@
   ;; Validate that the purchase can be fulfilled
   (try! (is-protocol-caller fulfill-role contract-caller))
   ;; Check if requested amount is valid
-  (asserts! (>= (get amt listing) amt) ERR_AMOUNT_IS_BIGGER)
+  (asserts! (>= (get amt listing) amt) ERR_AMOUNT_IS_BIGGER) ;;remove
   ;; Check that payment asset is STX (none means STX)
-  (asserts! (is-none (get payment-asset-contract listing)) ERR_PAYMENT_ASSET_MISMATCH)
+  (asserts! (is-none (get payment-asset-contract listing)) ERR_PAYMENT_ASSET_MISMATCH) ;;remove and put in fulfill contact is-none important
   
   ;; Transfer the ft to the purchaser (caller of the function)
-  (try! (as-contract (transfer-ft ft-asset-contract amt tx-sender taker)))
+  (try! (as-contract (transfer-ft ft-asset-contract amt tx-sender taker)))  ;;transfer
   
   ;; Transfer the STX payment from the purchaser to the creator of the ft
-  (try! (stx-transfer? total-payment taker (get maker listing)))
+  (try! (stx-transfer? total-payment taker (get maker listing))) ;;transfer
   
-  ;; Transfer the transaction fee to the contract owner
-  (try! (stx-transfer? tx-fee taker (var-get contract-owner)))
+  ;; Transfer the transaction fee to the contract owner 
+  (try! (stx-transfer? tx-fee taker (var-get contract-owner))) ;;transfer
   
   ;; Update or remove the listing based on remaining amount
   (if (is-eq remaining-amt u0)
@@ -481,7 +481,7 @@
   (asserts! (is-eq 
     (some (contract-of payment-asset-contract)) 
     (get payment-asset-contract listing)
-  ) ERR_PAYMENT_ASSET_MISMATCH)
+  ) ERR_PAYMENT_ASSET_MISMATCH) ;; remove this and put in fullfiill contract, some important
   
   ;; Transfer the ft to the purchaser (caller of the function)
   (try! (as-contract (transfer-ft ft-asset-contract amt tx-sender taker)))

@@ -19,7 +19,7 @@ plan:
         - contract-publish:
             contract-name: marketplace
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 183170
+            cost: 186950
             path: contracts/marketplace.clar
             anchor-block-only: true
             clarity-version: 3
@@ -40,7 +40,7 @@ plan:
         - contract-publish:
             contract-name: mock-token
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 18070
+            cost: 18950
             path: contracts/mock-token.clar
             anchor-block-only: true
             clarity-version: 3

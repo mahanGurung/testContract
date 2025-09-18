@@ -15,7 +15,7 @@
 ;; Define data variables
 (define-data-var token-name (string-ascii 32) "MockToken")
 (define-data-var token-symbol (string-ascii 10) "MOCK")
-(define-data-var token-uri (optional (string-utf8 256)) none)
+(define-data-var token-uri (optional (string-utf8 256)) (some u"https://github.com/mahanGurung/testcoin/raw/refs/heads/main/testcoin/testcoin.json"))
 (define-data-var token-decimals uint u6)
 
 ;; SIP-010 Functions
