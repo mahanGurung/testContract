@@ -16,6 +16,7 @@
 (define-constant ERR_EXPIRY_IN_PAST (err u1000))
 (define-constant ERR_PRICE_ZERO (err u1001))
 (define-constant ERR_AMOUNT_ZERO (err u1002))
+(define-constant ERR_NOT_ADMIN (err u1003))
 
 
 ;; cancelling and fulfiling errors
@@ -80,8 +81,8 @@
 ;; This marketplace requires any contracts used for assets or payments to be whitelisted
 ;; by the contract owner of this (marketplace) contract.
 (define-map whitelisted-asset-contracts principal bool)
-(map-set whitelisted-asset-contracts .mock-token true)
-(map-set whitelisted-asset-contracts .non-whitelisted-ft true)
+(map-set whitelisted-asset-contracts .mock-token true) ;;test
+(map-set whitelisted-asset-contracts .non-whitelisted-ft true) ;;test
 
 
 
@@ -101,10 +102,18 @@
   )
 )
 
+(define-read-only (get-contract-owner (address principal))
+  (begin 
+    (asserts! (is-eq (var-get contract-owner) address) ERR_NOT_ADMIN)
+    (ok true)
+  )
+)
+
 ;; Read-only functions
 (define-read-only (get-listing-ft-nonce) 
   (ok (var-get listing-ft-nonce))
 )
+
 
 (define-read-only (get-listing-map (listing-id uint))
   (map-get? listings-ft listing-id)
@@ -370,6 +379,7 @@
   (taker tx-sender)
   ;; Calculate remaining amount
   (remaining-amt (- (get amt listing) amt))
+  
   ;; Calculate total payment (price per unit * amount)
   (total-payment (* (get price listing) amt))
   ;; Changed: Calculate transaction fee as percentage of total payment
