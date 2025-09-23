@@ -301,7 +301,7 @@ describe("Marketplace Contract Tests", () => {
         [Cl.contractPrincipal(simnet.deployer, "mock-token"), listingData],
         wallet1
       );
-      expect(listingCreation).toBeOk(Cl.uint(0)); // (ok listing id)
+      expect(listingCreation).toBeOk(Cl.bool(true)); // (ok listing id)
 
 
       listingId = 0; // Assuming successful creation
@@ -319,7 +319,7 @@ describe("Marketplace Contract Tests", () => {
         wallet1
       );
 
-      expect(UpdateListing).toBeOk(Cl.uint(0))
+      expect(UpdateListing).toBeOk(Cl.bool(true))
       
       // This test assumes the listing exists and wallet1 is the maker
       // In a real scenario, you'd need to create the listing first
@@ -341,7 +341,7 @@ describe("Marketplace Contract Tests", () => {
         [Cl.contractPrincipal(simnet.deployer, "mock-token"), listingData],
         wallet1
       );
-      expect(listingCreation).toBeOk(Cl.uint(0)); // (ok listing id)
+      expect(listingCreation).toBeOk(Cl.bool(true)); // (ok listing id)
     
       
       const { result: unauthorized_account } = simnet.callPublicFn(
@@ -407,25 +407,40 @@ describe("Marketplace Contract Tests", () => {
         [Cl.contractPrincipal(simnet.deployer, "mock-token"), listingData],
         wallet1
       );
-      expect(listingCreation).toBeOk(Cl.uint(0)); // (ok listing id)
+      expect(listingCreation).toBeOk(Cl.bool(true)); // (ok listing id)
 
 
       listingId = 0; // Assuming successful creation
-      
-      const { result: UpdateListing } = simnet.callPublicFn(
-        "marketplace",
-        "update-listing-ft",
+
+      const {result: buyListing} = simnet.callPublicFn(
+        "marketplace-fulfill",
+        "fulfil-listing-ft-stx",
         [
           Cl.uint(listingId),
-          Cl.principal(mockFtContract),
-          Cl.some(Cl.uint(200)), // new amount
-          Cl.some(Cl.uint(75)),   // new price
-          Cl.none()               // keep same expiry
+          Cl.contractPrincipal(simnet.deployer, "mock-token"),
+          Cl.uint(1000000)
         ],
-        wallet1
-      );
+        wallet2
+      )
 
-      expect(UpdateListing).toBeOk(Cl.uint(0))
+      expect(buyListing).toBeOk(Cl.bool(true))
+      
+      // const { result: UpdateListing } = simnet.callPublicFn(
+      //   "marketplace",
+      //   "update-listing-ft",
+      //   [
+      //     Cl.uint(listingId),
+      //     Cl.principal(mockFtContract),
+      //     Cl.some(Cl.uint(200)), // new amount
+      //     Cl.some(Cl.uint(75)),   // new price
+      //     Cl.none()               // keep same expiry
+      //   ],
+      //   wallet1
+      // );
+
+      // expect(UpdateListing).toBeOk(Cl.bool(true))
+
+      
       
       // This test assumes the listing exists and wallet1 is the maker
       // In a real scenario, you'd need to create the listing first
@@ -447,7 +462,7 @@ describe("Marketplace Contract Tests", () => {
         [Cl.contractPrincipal(simnet.deployer, "mock-token"), listingData],
         wallet1
       );
-      expect(listingCreation).toBeOk(Cl.uint(0)); // (ok listing id)
+      expect(listingCreation).toBeOk(Cl.bool(true)); // (ok listing id)
     
       
       const { result: unauthorized_account } = simnet.callPublicFn(

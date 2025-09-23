@@ -8,7 +8,7 @@
         "if_this": {
           "scope": "contract_call",
           "method": "fulfil-listing-ft-stx",
-          "contract_identifier": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.marketplace"
+          "contract_identifier": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.marketplace-fulfill"
         },
         "then_that": {
           "http_post": {

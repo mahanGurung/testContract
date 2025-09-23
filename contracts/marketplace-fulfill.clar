@@ -13,12 +13,12 @@
 
 ;; constants
 ;;
-(define-constant ERR_UNKNOWN_LISTING (err u2000))
-(define-constant ERR_LISTING_EXPIRED (err u2002))
-(define-constant ERR_FT_ASSET_MISMATCH (err u2003))
-(define-constant ERR_PAYMENT_ASSET_MISMATCH (err u2004))
-(define-constant ERR_MAKER_TAKER_EQUAL (err u2005))
-(define-constant ERR_UNINTENDED_TAKER (err u2006))
+(define-constant ERR_UNKNOWN_LISTING (err u6000))
+(define-constant ERR_LISTING_EXPIRED (err u6002))
+(define-constant ERR_FT_ASSET_MISMATCH (err u6003))
+(define-constant ERR_PAYMENT_ASSET_MISMATCH (err u6004))
+(define-constant ERR_MAKER_TAKER_EQUAL (err u6005))
+(define-constant ERR_UNINTENDED_TAKER (err u6006))
 
 
 

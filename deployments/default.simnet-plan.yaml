@@ -83,6 +83,11 @@ plan:
             path: contracts/marketplace-fulfill.clar
             clarity-version: 3
         - emulated-contract-publish:
+            contract-name: staking-trait
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: contracts/staking-trait.clar
+            clarity-version: 3
+        - emulated-contract-publish:
             contract-name: mock-token
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: contracts/mock-token.clar
@@ -92,4 +97,17 @@ plan:
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: contracts/non-whitelisted-ft.clar
             clarity-version: 3
+        - emulated-contract-publish:
+            contract-name: staking-interface
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: contracts/staking-interface.clar
+            clarity-version: 3
       epoch: "3.1"
+    - id: 1
+      transactions:
+        - emulated-contract-publish:
+            contract-name: stacking-traits
+            emulated-sender: ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E
+            path: "./.cache/requirements/ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits.clar"
+            clarity-version: 3
+      epoch: "3.2"
