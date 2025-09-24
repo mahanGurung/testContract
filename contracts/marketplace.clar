@@ -266,8 +266,6 @@
     (listing (unwrap! (map-get? listings-ft listing-id) ERR_UNKNOWN_LISTING))
     (maker (get maker listing))
   )
-    ;; Check if contract is paused
-    (try! (assert-not-paused))
     ;; Verify that the caller of the function is the creator of the FT to be cancelled
     (asserts! (is-eq maker tx-sender) ERR_UNAUTHORISED)
     ;; Verify that the asset contract to use is the same one that the FT uses
@@ -278,7 +276,15 @@
     ;; Delete the listing
     (map-delete listings-ft listing-id)
     ;; Transfer the FT from this contract's principal back to the creator's principal
-    (as-contract (transfer-ft ft-asset-contract (get amt listing) tx-sender maker))
+    (try! (as-contract (transfer-ft ft-asset-contract (get amt listing) tx-sender maker)))
+
+    (print {
+      listing-id: listing-id,
+      topic: "Cancel listing",
+      ft-asset-contract: ft-asset-contract
+    })
+
+    (ok true)
 
   )
 )
@@ -560,4 +566,9 @@
 		(ok true)
 	)
 )
+
+
+
+
+
 

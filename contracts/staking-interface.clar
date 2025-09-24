@@ -26,7 +26,7 @@
 
 (define-public (unstaking (staking-contract <staking-ft>) (amount uint)  (unstaker principal))
   (begin
-    (is-whitelisted (contract-of staking-contract))
+    ;; (is-whitelisted (contract-of staking-contract))
     
 
     ;; dynamic contract call
@@ -42,3 +42,6 @@
 
 ;; ---- Constants / Errors ----
 (define-constant ERR-NOT-WHITELISTED (err u100)) ;; use your preferred error codes
+
+
+

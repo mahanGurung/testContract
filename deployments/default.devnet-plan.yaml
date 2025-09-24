@@ -19,21 +19,21 @@ plan:
         - contract-publish:
             contract-name: marketplace
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 186950
+            cost: 187810
             path: contracts/marketplace.clar
             anchor-block-only: true
             clarity-version: 3
         - contract-publish:
             contract-name: marketplace-admin
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 5300
+            cost: 5320
             path: contracts/marketplace-admin.clar
             anchor-block-only: true
             clarity-version: 3
         - contract-publish:
             contract-name: marketplace-fulfill
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 32130
+            cost: 32260
             path: contracts/marketplace-fulfill.clar
             anchor-block-only: true
             clarity-version: 3
@@ -47,7 +47,7 @@ plan:
         - contract-publish:
             contract-name: mock-token
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 66260
+            cost: 67270
             path: contracts/mock-token.clar
             anchor-block-only: true
             clarity-version: 3
@@ -61,7 +61,7 @@ plan:
         - contract-publish:
             contract-name: staking-interface
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 11650
+            cost: 11720
             path: contracts/staking-interface.clar
             anchor-block-only: true
             clarity-version: 3

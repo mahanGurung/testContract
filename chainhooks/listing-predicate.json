@@ -1,23 +1,24 @@
-{
+  {
     "name": "Scoping for listing",
-    "uuid": "f03aad4b-41e4-4fbb-87c0-dba604248d57",
     "chain": "stacks",
     "version": 1,
     "networks": {
       "devnet": {
         "if_this": {
-          "scope": "contract_call",
-          "method": "list-asset-ft",
+          "scope": "print_event",
+          "contains": "listing-creation",
           "contract_identifier": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.marketplace"
         },
+        "end_block": null,
         "then_that": {
           "http_post": {
             "url": "http://localhost:3000/api/listing",
             "authorization_header": ""
           }
         },
-        "start_block": 0,
-        "decode_clarity_values": true
+        "start_block": 3560368,
+        "decode_clarity_values": true,
+        "expire_after_occurrence": null
       }
     }
   }
