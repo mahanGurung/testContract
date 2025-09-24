@@ -25,7 +25,7 @@
 
 ;; data vars
 (define-data-var contract-owner principal tx-sender)
-(define-data-var token-uri (optional (string-utf8 256)) none)
+(define-data-var token-uri (optional (string-utf8 256)) (some u"https://raw.githubusercontent.com/mahanGurung/testcoin/refs/heads/main/testcoin/testcoin.json"))
 (define-data-var contract-callable principal .staking-interface)
 ;;
 
