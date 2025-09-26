@@ -142,18 +142,6 @@
     )
 )
 
-;; (define-public (unlock-GFD (amount uint))
-;;     (begin 
-;;         (asserts! (> amount u0) err-insufficient-amount)
-;;         (let ((user-locked (map-get? locked-GFD tx-sender)))
-;;             (asserts! (<= amount (default-to u0 (get amount user-locked))) err-insufficient-amount)
-;;             (try! (as-contract (ft-transfer? mock-token amount (as-contract tx-sender) tx-sender)))
-;;             (map-set locked-GFD tx-sender {  amount:(- (get amount user-locked) amount), time: (get time user-locked)}) 
-;;             (print { event-type: "UnlockTrk", amount: amount, user: tx-sender })
-;;             (ok true)
-;;         )
-;;     )
-;; )
 
 (define-public (unstaking (amount uint) (sender principal))
   (begin
@@ -175,9 +163,6 @@
 
 
 (mint u10000000 (var-get contract-owner))
-(mint u1000000 'ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5)
-(mint u1000000 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG)
-(mint u1000000 'ST2JHG361ZXG51QTKY2NQCVBPPRRE2KZB1HR05NNC)
 
 
 
