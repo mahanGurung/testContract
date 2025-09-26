@@ -47,7 +47,7 @@ plan:
         - contract-publish:
             contract-name: mock-token
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 67270
+            cost: 67390
             path: contracts/mock-token.clar
             anchor-block-only: true
             clarity-version: 3
@@ -61,7 +61,7 @@ plan:
         - contract-publish:
             contract-name: staking-interface
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 11720
+            cost: 11400
             path: contracts/staking-interface.clar
             anchor-block-only: true
             clarity-version: 3
