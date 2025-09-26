@@ -163,7 +163,7 @@
       (let ((locked-amount (default-to u0 (get amount user-locked)))
             (locked-time (default-to u0 (get time user-locked))))
         (asserts! (<= amount locked-amount) err-insufficient-amount)
-        (try! (as-contract (ft-transfer? mock-token amount (as-contract sender) sender)))
+        (try! (as-contract (ft-transfer? mock-token amount (as-contract tx-sender) sender)))
         (map-set locked-GFD sender { amount: (- locked-amount amount), time: locked-time }) 
         (print { event-type: "UnlockTrk", amount: amount, user: sender })
         (ok true)
