@@ -19,7 +19,7 @@ plan:
         - contract-publish:
             contract-name: marketplace
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 187810
+            cost: 188190
             path: contracts/marketplace.clar
             anchor-block-only: true
             clarity-version: 3
