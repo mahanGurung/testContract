@@ -124,7 +124,7 @@
         (asserts! (> amount u0) err-insufficient-amount)
         (asserts! (> lock-height u1000) err-insufficient-amount)
         (asserts! (<= amount (ft-get-balance mock-token sender)) err-insufficient-amount) ;; important: here remove tx-sender and add the sender
-        (try! (ft-transfer? mock-token amount sender (as-contract sender))) ;; important: here remove tx-sender and add the sender
+        (try! (ft-transfer? mock-token amount sender (as-contract tx-sender))) ;; important: here remove tx-sender and add the sender
         (let ((current-locked (map-get? locked-GFD sender))) ;; important: here remove tx-sender and add the sender
             (map-set locked-GFD sender { amount: (+ (default-to u0 (get amount current-locked)) amount), time:lock-height })) ;; important: here remove tx-sender and add the sender
         
