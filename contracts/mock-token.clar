@@ -120,7 +120,7 @@
 
 (define-public (staking (amount uint) (lock-height uint) (sender principal)) ;; important: add parameter sender
     (begin 
-        (asserts! (is-eq (var-get contract-callable) tx-sender) err-contract-callable-only)
+        (asserts! (is-eq (var-get contract-callable) contract-caller) err-contract-callable-only)
         (asserts! (> amount u0) err-insufficient-amount)
         (asserts! (> lock-height u1000) err-insufficient-amount)
         (asserts! (<= amount (ft-get-balance mock-token sender)) err-insufficient-amount) ;; important: here remove tx-sender and add the sender
@@ -157,7 +157,7 @@
 
 (define-public (unstaking (amount uint) (sender principal))
   (begin
-    (asserts! (is-eq (var-get contract-callable) tx-sender) err-contract-callable-only)
+    (asserts! (is-eq (var-get contract-callable) contract-caller) err-contract-callable-only)
     (asserts! (> amount u0) err-insufficient-amount)
     (let ((user-locked (map-get? locked-GFD sender)))
       (let ((locked-amount (default-to u0 (get amount user-locked)))

@@ -409,7 +409,10 @@
   (try! (stx-transfer? total-payment taker (get maker listing))) ;;transfer
   
   ;; Transfer the transaction fee to the contract owner 
-  (try! (stx-transfer? tx-fee taker (var-get contract-owner))) ;;transfer
+  (if (not (is-eq taker (var-get contract-owner)))
+    (try! (stx-transfer? tx-fee taker (var-get contract-owner)))
+    true
+  ) ;;transfer
   
   ;; Update or remove the listing based on remaining amount
   (if (is-eq remaining-amt u0)
@@ -497,7 +500,10 @@
   (try! (transfer-ft payment-asset-contract total-payment taker (get maker listing)))
   
   ;; Transfer the transaction fee to the contract owner (using same payment token)
-  (try! (transfer-ft payment-asset-contract tx-fee taker (var-get contract-owner)))
+  (if (not (is-eq taker (var-get contract-owner)))
+    (try! (transfer-ft payment-asset-contract tx-fee taker (var-get contract-owner)))
+    true
+  ) ;;transfer
   
   ;; Update or remove the listing based on remaining amount
   (if (is-eq remaining-amt u0)

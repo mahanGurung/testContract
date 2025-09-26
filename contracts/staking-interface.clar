@@ -5,15 +5,15 @@
   (contract-call? .marketplace is-whitelisted contract)
 )
 
-(define-public (staking (staking-contract <staking-ft>) (amount uint) (time uint) (staker principal))
+(define-public (staking (staking-contract <staking-ft>) (amount uint) (time uint) )
   (begin
     (is-whitelisted (contract-of staking-contract))
 
     ;; dynamic contract call
-    (try! (contract-call? staking-contract staking amount time staker))
+    (try! (contract-call? staking-contract staking amount time tx-sender))
      (print {
         stacking-contract: staking-contract,
-        staker: staker,
+        staker: tx-sender,
         block-time: time,
         amount: amount
         })
@@ -24,16 +24,16 @@
 
 
 
-(define-public (unstaking (staking-contract <staking-ft>) (amount uint)  (unstaker principal))
+(define-public (unstaking (staking-contract <staking-ft>) (amount uint))
   (begin
     ;; (is-whitelisted (contract-of staking-contract))
     
 
     ;; dynamic contract call
-    (try! (contract-call? staking-contract unstaking amount unstaker))
+    (try! (contract-call? staking-contract unstaking amount tx-sender))
     (print {
         stacking-contract: staking-contract,
-        unstaker: unstaker,
+        unstaker: tx-sender,
         amount: amount
         })
     (ok true)
