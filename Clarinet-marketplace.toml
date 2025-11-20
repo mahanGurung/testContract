@@ -11,53 +11,41 @@ contract_id = 'STM6S3AESTK9NAYE3Z7RS00T11ER8JJCDNTKG711.sip-010-trait'
 [[project.requirements]]
 contract_id = 'ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits'
 [contracts.marketplace]
-path = 'contracts/marketplace.clar'
+path = 'contracts/marketplace-double.clar'
 clarity_version = 3
-epoch = 'latest'
+epoch = '3.1'
 
 [contracts.marketplace-admin]
 path = 'contracts/marketplace-admin.clar'
 clarity_version = 3
-epoch = 'latest'
+epoch = '3.1'
 
 [contracts.marketplace-fulfill]
 path = 'contracts/marketplace-fulfill.clar'
 clarity_version = 3
-epoch = 'latest'
+epoch = '3.1'
 
 [contracts.mock-token]
 path = 'contracts/mock-token.clar'
 clarity_version = 3
-epoch = 'latest'
+epoch = '3.1'
 
 [contracts.non-whitelisted-ft]
 path = 'contracts/non-whitelisted-ft.clar'
 clarity_version = 3
-epoch = 'latest'
+epoch = '3.1'
 
 [contracts.staking-interface]
 path = 'contracts/staking-interface.clar'
 clarity_version = 3
-epoch = 'latest'
+epoch = '3.1'
 
 [contracts.staking-trait]
 path = 'contracts/staking-trait.clar'
 clarity_version = 3
-epoch = 'latest'
-
-[contracts.test]
-path = 'contracts/test.clar'
-clarity_version = 4
-epoch = 'latest'
-
-[contracts.token-trait]
-path = 'contracts/token-trait.clar'
-clarity_version = 4
-epoch = 'latest'
+epoch = '3.1'
 [repl.analysis]
 passes = ['check_checker']
-
-[repl.analysis.lints]
 
 [repl.analysis.check_checker]
 strict = false

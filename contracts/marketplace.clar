@@ -9,6 +9,7 @@
 
 
 (use-trait ft-trait 'STM6S3AESTK9NAYE3Z7RS00T11ER8JJCDNTKG711.sip-010-trait.sip-010-trait)
+(use-trait call-owner .token-trait.token-trait)
 
 
 
@@ -31,9 +32,17 @@
 (define-constant ERR_PAYMENT_CONTRACT_NOT_WHITELISTED (err u2008))
 (define-constant ERR_AMOUNT_IS_BIGGER (err u2009))
 
+
 ;; emergency and fee errors
 (define-constant ERR_CONTRACT_PAUSED (err u3000))
 (define-constant ERR_INSUFFICIENT_BALANCE (err u3001))
+
+(define-constant ERR_FT_AND_CALL_NOT_EQUAL (err u3002))
+(define-constant ERR_NOT_ASSET_OWNER (err u3003))
+(define-constant ERR_GETTING_ASSET_OWNER (err u3004))
+
+
+
 
 (define-constant admin-role 0x00)
 (define-constant fulfill-role 0x01)
@@ -81,8 +90,8 @@
 ;; This marketplace requires any contracts used for assets or payments to be whitelisted
 ;; by the contract owner of this (marketplace) contract.
 (define-map whitelisted-asset-contracts principal bool)
-(map-set whitelisted-asset-contracts .mock-token true) ;;test
-(map-set whitelisted-asset-contracts .non-whitelisted-ft true) ;;test
+;; (map-set whitelisted-asset-contracts .mock-token true) ;;test
+;; (map-set whitelisted-asset-contracts .non-whitelisted-ft true) ;;test
 
 
 
@@ -200,9 +209,12 @@
   (contract-call? token-contract transfer amount sender recipient none)
 )
 
+
+
 ;; Public function to list an asset along with its contract
 (define-public (list-asset-ft
   (ft-asset-contract <ft-trait>)
+  (owner-asset-contract <call-owner>)
   (ft-asset {
     taker: (optional principal),
     amt: uint,
@@ -211,53 +223,62 @@
     payment-asset-contract: (optional principal)
   })
 )
-  (let ((listing-id (var-get listing-ft-nonce)))
-    ;; Check if contract is paused
-    (try! (assert-not-paused))
-    ;; Verify that the contract of this asset is whitelisted
-    (asserts! (is-whitelisted (contract-of ft-asset-contract)) ERR_ASSET_CONTRACT_NOT_WHITELISTED)
-    ;; Verify that the asset is not expired
-    ;; (asserts! (> (get expiry ft-asset) burn-block-height) ERR_EXPIRY_IN_PAST)
-    ;; Verify that the asset price is greater than zero
-    (asserts! (> (get price ft-asset) u0) ERR_PRICE_ZERO)
-    ;; Verify that the asset amt is greater than zero
-    (asserts! (> (get amt ft-asset) u0) ERR_AMOUNT_ZERO)
+  
+  (begin  
+      ;; Check if contract is paused
+      (try! (assert-not-paused))
+      (asserts! (is-eq (contract-of ft-asset-contract) (contract-of owner-asset-contract)) ERR_FT_AND_CALL_NOT_EQUAL)
+      (let ((listing-id (var-get listing-ft-nonce))
+            (asset-owner (unwrap! (contract-call? owner-asset-contract get-owner) ERR_GETTING_ASSET_OWNER))
+      )
+          
+        (asserts! (is-eq asset-owner tx-sender) ERR_NOT_ASSET_OWNER)
+        ;; Verify that the contract of this asset is whitelisted
+        (asserts! (is-whitelisted (contract-of ft-asset-contract)) ERR_ASSET_CONTRACT_NOT_WHITELISTED)
+        ;; Verify that the asset is not expired
+        ;; (asserts! (> (get expiry ft-asset) burn-block-height) ERR_EXPIRY_IN_PAST)
+        ;; Verify that the asset price is greater than zero
+        (asserts! (> (get price ft-asset) u0) ERR_PRICE_ZERO)
+        ;; Verify that the asset amt is greater than zero
+        (asserts! (> (get amt ft-asset) u0) ERR_AMOUNT_ZERO)
 
-    ;; Verify that the contract of the payment is whitelisted
-    (asserts! (match (get payment-asset-contract ft-asset)
-      payment-asset
-      (is-whitelisted payment-asset)
-      true
-    ) ERR_PAYMENT_CONTRACT_NOT_WHITELISTED)
-    ;; Transfer the FT ownership to this contract's principal
-    (try! (transfer-ft
-      ft-asset-contract
-      (get amt ft-asset)
-      tx-sender
-      (as-contract tx-sender)
-    ))
-    ;; List the FT in the listings map
-    (map-set listings-ft listing-id (merge
-      { maker: tx-sender, ft-asset-contract: (contract-of ft-asset-contract) }
-      ft-asset
-    ))
-    ;; Increment the nonce to use for the next unique listing ID
-    (var-set listing-ft-nonce (+ listing-id u1))
+        ;; Verify that the contract of the payment is whitelisted
+        (asserts! (match (get payment-asset-contract ft-asset)
+          payment-asset
+          (is-whitelisted payment-asset)
+          true
+        ) ERR_PAYMENT_CONTRACT_NOT_WHITELISTED)
+        
+        ;; Transfer the FT ownership to this contract's principal
+        (try! (transfer-ft
+          ft-asset-contract
+          (get amt ft-asset)
+          tx-sender
+          (as-contract tx-sender)
+        ))
+        ;; List the FT in the listings map
+        (map-set listings-ft listing-id (merge
+          { maker: tx-sender, ft-asset-contract: (contract-of ft-asset-contract) }
+          ft-asset
+        ))
+        ;; Increment the nonce to use for the next unique listing ID
+        (var-set listing-ft-nonce (+ listing-id u1))
 
-    (print {
-        topic: "listing-creation",
-        listing-id: listing-id,
-        amount: (get amt ft-asset),
-        price: (get price ft-asset),
-        expiry: (get expiry ft-asset),
-        maker: tx-sender,
-        taker: (get taker ft-asset),
-        asset-contract: ft-asset-contract,
-        payment-asset-contract: (get payment-asset-contract ft-asset)
-      })
+        (print {
+            topic: "listing-creation",
+            listing-id: listing-id,
+            amount: (get amt ft-asset),
+            price: (get price ft-asset),
+            expiry: (get expiry ft-asset),
+            maker: tx-sender,
+            taker: (get taker ft-asset),
+            asset-contract: ft-asset-contract,
+            payment-asset-contract: (get payment-asset-contract ft-asset)
+          })
 
-    ;; Return the created listing ID
-    (ok true)
+        (ok true)
+      )
+  
   )
 )
 
@@ -558,8 +579,6 @@
 		(new-contract principal)
 	)
 	(begin
-    ;; Check if contract is paused
-    (try! (assert-not-paused))
 		;; Check that caller is protocol contract
 		(try! (is-protocol-caller admin-role contract-caller))
 		;; Update the protocol contract
@@ -574,7 +593,6 @@
 		(ok true)
 	)
 )
-
 
 
 

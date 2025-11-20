@@ -70,6 +70,7 @@
 ;; read only functions
 ;;
 
+
 ;; Private function to validate that a purchase can be fulfilled
 (define-private (assert-can-fulfil-ft
   (ft-asset-contract principal)
@@ -92,6 +93,7 @@
       (match (get taker listing) intended-taker (is-eq intended-taker tx-sender) true)
       ERR_UNINTENDED_TAKER
     )
+    
     ;; Verify the listing for purchase is not expired
     (asserts! (< burn-block-height (get expiry listing)) ERR_LISTING_EXPIRED)
     ;; Verify the asset contract used to purchase the FT is the same as the one set on the FT
@@ -106,4 +108,4 @@
 )
 
 
-          
+

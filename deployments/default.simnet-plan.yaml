@@ -58,6 +58,7 @@ genesis:
     - pox-4
     - signers
     - signers-voting
+    - costs-4
 plan:
   batches:
     - id: 0
@@ -67,6 +68,22 @@ plan:
             emulated-sender: STM6S3AESTK9NAYE3Z7RS00T11ER8JJCDNTKG711
             path: "./.cache/requirements/STM6S3AESTK9NAYE3Z7RS00T11ER8JJCDNTKG711.sip-010-trait.clar"
             clarity-version: 3
+      epoch: "3.1"
+    - id: 1
+      transactions:
+        - emulated-contract-publish:
+            contract-name: stacking-traits
+            emulated-sender: ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E
+            path: "./.cache/requirements/ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits.clar"
+            clarity-version: 3
+      epoch: "3.2"
+    - id: 2
+      transactions:
+        - emulated-contract-publish:
+            contract-name: token-trait
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: contracts/token-trait.clar
+            clarity-version: 4
         - emulated-contract-publish:
             contract-name: marketplace
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
@@ -102,12 +119,9 @@ plan:
             emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
             path: contracts/staking-interface.clar
             clarity-version: 3
-      epoch: "3.1"
-    - id: 1
-      transactions:
         - emulated-contract-publish:
-            contract-name: stacking-traits
-            emulated-sender: ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E
-            path: "./.cache/requirements/ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits.clar"
-            clarity-version: 3
-      epoch: "3.2"
+            contract-name: test
+            emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            path: contracts/test.clar
+            clarity-version: 4
+      epoch: "3.3"
