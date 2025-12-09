@@ -174,4 +174,6 @@ Planned future coverage to increase robustness:
 
 * ❏ Attempt fulfil after expiry
 * ❏ Fulfil with incorrect token
+* ❏ Property-Based Testing using rendezvous
+* ❏ Invariant Testing using rendezvous
 
