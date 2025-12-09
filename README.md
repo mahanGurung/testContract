@@ -36,7 +36,7 @@ All tests were executed using:
 
 * **Test: returns deployer as owner**
     * Function: `get-contract-owner`
-    * Expected Output: deployer principal
+    * Expected Output: `(ok true)`
     * Result: **✅ PASS**
 * **Test: allows owner to change owner**
     * Function: `set-contract-owner`
@@ -91,17 +91,17 @@ All tests were executed using:
 
 * **Test: maker can list token A for token B**
     * Function: `list-asset-ft`
-    * Input: Listing details including `ft-asset = mock-token-a`, `price = 5`, and `payment-asset-contract = mock-token-b`
+    * Input: Trait `ft-asset-contract = mock-token-a`, `owner-asset-contract = mock-token-a` Listing details including `amt = 10_00_000`, `expiry = 10000`, `price = 5`, and `payment-asset-contract = mock-token-b`
     * Expected Output: `(ok true)`
     * Result: **✅ PASS**
 * **Test: maker can update listing**
     * Function: `update-listing-ft`
-    * Input: `listing-id = 0`, `new listing values`
+    * Input: `ft-asset-contract = mock-token-a`, `new listing values`
     * Expected Output: `(ok true)`
     * Result: **✅ PASS**
 * **Test: maker may cancel**
     * Function: `cancel-listing-ft`
-    * Input: `listing-id = 0`
+    * Input: `ft-asset-contract = mock-token-a`
     * Expected Output: `(ok true)`
     * Result: **✅ PASS**
 
@@ -110,13 +110,14 @@ All tests were executed using:
 ## 5. Fulfillment
 
 * **Test: buyer can fulfil using FT**
+    * Contract: `marketplace-fulfill`
     * Function: `fulfil-ft-listing-ft`
-    * Input: `listing-id = 0`, `payment-token = mock-token-b`
+    * Input: `ft-asset-contract = mock-token-a` , `owner-asset-contract = mock-token-a`, `payment-token = mock-token-b`, and `amt = 10_00_000`
     * Expected Output: `(ok true)`
     * Result: **✅ PASS**
 * **Test: buyer can fulfil with STX**
     * Function: `fulfil-listing-ft-stx`
-    * Input: `listing-id = 0`
+    * Input: `ft-asset-contract = mock-token-a`, `owner-asset-contract = mock-token-a`, and `amt = 10_00_000`
     * Expected Output: `(ok true)`
     * Result: **✅ PASS**
 
