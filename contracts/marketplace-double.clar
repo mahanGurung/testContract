@@ -3,7 +3,7 @@
 ;; - Listing expiry in block height.
 ;; - The payment asset, either STX or a SIP010 fungible token.
 ;; - The ft price in said payment asset.
-;; - An optional intended taker. If set, only that principal will be able to fulfil the listing.
+;; - An optional intended divide. If set, only that principal will be able to fulfil the listing.
 ;;
 ;; Source: https://github.com/clarity-lang/book/tree/main/projects/tiny-market
 
@@ -18,6 +18,11 @@
 (define-constant ERR_PRICE_ZERO (err u1001))
 (define-constant ERR_AMOUNT_ZERO (err u1002))
 (define-constant ERR_NOT_ADMIN (err u1003))
+(define-constant ERR_AMOUNT_NOT_EQUAL (err u1004))
+(define-constant ERR_AMOUNT_NOT_FOUND (err u1005))
+(define-constant ERR_NOT_EXPIRY (err u1000))
+
+
 
 
 ;; cancelling and fulfiling errors
@@ -26,8 +31,8 @@
 (define-constant ERR_LISTING_EXPIRED (err u2002))
 (define-constant ERR_FT_ASSET_MISMATCH (err u2003))
 (define-constant ERR_PAYMENT_ASSET_MISMATCH (err u2004))
-(define-constant ERR_MAKER_TAKER_EQUAL (err u2005))
-(define-constant ERR_UNINTENDED_TAKER (err u2006))
+(define-constant ERR_MAKER_divide_EQUAL (err u2005))
+(define-constant ERR_UNINTENDED_divide (err u2006))
 (define-constant ERR_ASSET_CONTRACT_NOT_WHITELISTED (err u2007))
 (define-constant ERR_PAYMENT_CONTRACT_NOT_WHITELISTED (err u2008))
 (define-constant ERR_AMOUNT_IS_BIGGER (err u2009))
@@ -58,7 +63,7 @@
   {maker: principal, contractAddr: principal}
   {
     maker: principal,
-    taker: (optional principal),
+    divide: uint,
     amt: uint,
     ft-asset-contract: principal,
     expiry: uint,
@@ -66,6 +71,8 @@
     payment-asset-contract: (optional principal)
   }
 )
+
+(define-map asset-m-pool {investor: principal, asset: principal}  uint )
 
 ;; Used for unique IDs for each listing
 (define-data-var listing-ft-nonce uint u0)
@@ -89,7 +96,7 @@
 
 ;; This marketplace requires any contracts used for assets or payments to be whitelisted
 ;; by the contract owner of this (marketplace) contract.
-(define-map whitelisted-asset-contracts principal bool)
+(define-map whitelisted-asset-contracts principal {isWhitelisted: bool, amount: uint})
 
 (define-map whitelisted-payment-contracts principal bool)
 ;; (map-set whitelisted-asset-contracts .mock-token true) ;;test
@@ -113,10 +120,10 @@
   )
 )
 
-(define-read-only (get-contract-owner (address principal))
+(define-read-only (get-contract-owner)
   (begin 
-    (asserts! (is-eq (var-get contract-owner) address) ERR_NOT_ADMIN)
-    (ok true)
+    (asserts! (is-eq (var-get contract-owner) contract-caller) ERR_NOT_ADMIN)
+    (ok true)     
   )
 )
 
@@ -146,7 +153,11 @@
 
 ;; Function that checks if the given contract has been whitelisted.
 (define-read-only (is-whitelisted (asset-contract principal))
-  (default-to false (map-get? whitelisted-asset-contracts asset-contract))
+  (let ((contract (map-get? whitelisted-asset-contracts asset-contract))
+        (whitelisted (get isWhitelisted contract))
+      ) 
+      (default-to false whitelisted)
+  )
 )
 
 (define-read-only (is-whitelisted-payment (payment-contract principal))
@@ -193,28 +204,29 @@
 
 ;; Only the contract owner of this (marketplace) contract can whitelist an asset contract.
 ;; test
-(define-public (set-whitelisted (asset-contract principal) (whitelisted bool) (payment bool))
+(define-public (set-whitelisted (asset-contract principal) (whitelisted bool) (amount (optional uint)))
   (begin
     (try! (assert-not-paused))
-    (asserts! (is-eq (var-get contract-owner) tx-sender) ERR_UNAUTHORISED)
-    (if payment 
-      (begin
+    (asserts! (is-eq (var-get contract-owner) contract-caller) ERR_UNAUTHORISED)
+    (match amount asset-amount 
+       (begin 
+      (map-set whitelisted-asset-contracts asset-contract {isWhitelisted: whitelisted, amount: asset-amount})
+      (print {
+              whitelisted-asset: asset-contract,
+              isWhitelisted: whitelisted
+            })
+      (ok true))
+       (begin
         (map-set whitelisted-payment-contracts asset-contract whitelisted)
       (print {
               whitelisted-payment: asset-contract,
               isWhitelisted: whitelisted
             })
       (ok true))
-      (begin 
-      (map-set whitelisted-asset-contracts asset-contract whitelisted)
-      (print {
-              whitelisted-asset: asset-contract,
-              isWhitelisted: whitelisted
-            })
-      (ok true))
-      )
+    )
   )
 )
+
 
 ;; Internal function to transfer fungible tokens from a sender to a given recipient.
 (define-private (transfer-ft
@@ -233,7 +245,7 @@
   (ft-asset-contract <ft-trait>)
   (owner-asset-contract <call-owner>)
   (ft-asset {
-    taker: (optional principal),
+    divide: uint,
     amt: uint,
     expiry: uint,
     price: uint,
@@ -248,7 +260,11 @@
       (let (
         ;; (listing-id (var-get listing-ft-nonce))
             (asset-owner (unwrap! (contract-call? owner-asset-contract get-owner) ERR_GETTING_ASSET_OWNER))
+            (whitelisted-info (map-get? whitelisted-asset-contracts (contract-of ft-asset-contract)))
+            (is-eq-amount (unwrap! (get amount whitelisted-info) ERR_AMOUNT_NOT_FOUND))
+            (ft-amt (get amt ft-asset))
       )
+        (asserts! (is-eq is-eq-amount ft-amt) ERR_AMOUNT_NOT_EQUAL)
           
         (asserts! (is-eq asset-owner contract-caller) ERR_NOT_ASSET_OWNER)
         ;; Verify that the contract of this asset is whitelisted
@@ -289,7 +305,7 @@
             price: (get price ft-asset),
             expiry: (get expiry ft-asset),
             maker: tx-sender,
-            taker: (get taker ft-asset),
+            divide: (get divide ft-asset),
             asset-contract: ft-asset-contract,
             payment-asset-contract: (get payment-asset-contract ft-asset)
           })
@@ -334,19 +350,20 @@
 (define-public (update-listing-ft 
     
     (ft-asset-contract <ft-trait>)
-    (new-amt (optional uint)) 
-    (new-price (optional uint)) 
-    (new-expiry (optional uint))
+    ;; (new-amt (optional uint)) 
+    ;; (new-price (optional uint)) 
+    (new-expiry uint)
   )
   (let (
     ;; Fetch the listing, or fail if not found
     (listing (unwrap! (map-get? listings-ft { maker: contract-caller, contractAddr: (contract-of ft-asset-contract)}) ERR_UNKNOWN_LISTING))
     (current-amt (get amt listing))
+    (current-price (get price listing))
   )
     ;; Check if contract is paused
     (try! (assert-not-paused))
     ;; Ensure only the maker can update their listing
-    (asserts! (is-eq tx-sender (get maker listing)) ERR_UNAUTHORISED)
+    (asserts! (is-eq contract-caller (get maker listing)) ERR_UNAUTHORISED)
 
     ;; Verify that the asset contract matches
     (asserts! (is-eq
@@ -356,45 +373,48 @@
     
     (let (
       ;; Use new values if provided, otherwise keep old values
-      (updated-amt (default-to current-amt new-amt))
-      (updated-price (default-to (get price listing) new-price))
-      (updated-expiry (default-to (get expiry listing) new-expiry))
+      ;; (updated-amt (default-to current-amt new-amt))
+      ;; (updated-price (default-to (get price listing) new-price))
+      (current-expiry (get expiry listing))
     )
+      (asserts! (>= current-expiry stacks-block-height) ERR_NOT_EXPIRY)
+      (asserts! (> new-expiry stacks-block-height) ERR_EXPIRY_IN_PAST)
+      
       ;; Validate that updated amount is not zero
-      (asserts! (> updated-amt u0) ERR_AMOUNT_ZERO)
+      ;; (asserts! (> updated-amt u0) ERR_AMOUNT_ZERO)
       ;; Validate that updated price is not zero
-      (asserts! (> updated-price u0) ERR_PRICE_ZERO)
+      ;; (asserts! (> updated-price u0) ERR_PRICE_ZERO)
       ;; Handle amount changes - transfer tokens if needed
-      (if (not (is-eq updated-amt current-amt))
-        (if (> updated-amt current-amt)
-          ;; If increasing amount, user needs to transfer more tokens to contract
-          (try! (transfer-ft
-            ft-asset-contract
-            (- updated-amt current-amt)
-            tx-sender
-            (as-contract tx-sender)
-          ))
-          ;; If decreasing amount, transfer excess tokens back to user
-          (try! (as-contract (transfer-ft
-            ft-asset-contract
-            (- current-amt updated-amt)
-            tx-sender
-            (get maker listing)
-          )))
-        )
-        ;; No amount change, do nothing
-        true
-      )
+      ;; (if (not (is-eq updated-amt current-amt))
+      ;;   (if (> updated-amt current-amt)
+      ;;     ;; If increasing amount, user needs to transfer more tokens to contract
+      ;;     (try! (transfer-ft
+      ;;       ft-asset-contract
+      ;;       (- updated-amt current-amt)
+      ;;       tx-sender
+      ;;       (as-contract tx-sender)
+      ;;     ))
+      ;;     ;; If decreasing amount, transfer excess tokens back to user
+      ;;     (try! (as-contract (transfer-ft
+      ;;       ft-asset-contract
+      ;;       (- current-amt updated-amt)
+      ;;       tx-sender
+      ;;       (get maker listing)
+      ;;     )))
+      ;;   )
+      ;;   ;; No amount change, do nothing
+      ;;   true
+      ;; )
       
       ;; Update the listing in the map
       (map-set listings-ft { maker:contract-caller, contractAddr:(contract-of ft-asset-contract)}
         {
           maker: (get maker listing),
-          taker: (get taker listing),
-          amt: updated-amt,
+          divide: (get divide listing),
+          amt: current-amt,
           ft-asset-contract: (get ft-asset-contract listing),
-          expiry: updated-expiry,
-          price: updated-price,
+          expiry: new-expiry,
+          price: current-price,
           payment-asset-contract: (get payment-asset-contract listing)
         }
       )
@@ -402,10 +422,7 @@
       ;; Print update event
       (print {
         topic: "listing-updated",
-        old-amt: current-amt,
-        new-amt: updated-amt,
-        new-price: updated-price,
-        new-expiry: updated-expiry,
+        new-expiry: new-expiry,
         maker: (get maker listing)
       })
       
@@ -420,8 +437,8 @@
  (let (
   ;; Verify the given listing ID exists
   (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr:(contract-of ft-asset-contract)}) ERR_UNKNOWN_LISTING))
-  ;; Set the ft's taker to the purchaser (caller of the function)
-  (taker tx-sender)
+  ;; Set the ft's divide to the purchaser (caller of the function)
+  (divide tx-sender)
   ;; Calculate remaining amount
   (remaining-amt (- (get amt listing) amt))
   
@@ -442,14 +459,14 @@
   (asserts! (is-none (get payment-asset-contract listing)) ERR_PAYMENT_ASSET_MISMATCH) ;;remove and put in fulfill contact is-none important
   
   ;; Transfer the ft to the purchaser (caller of the function)
-  (try! (as-contract (transfer-ft ft-asset-contract amt tx-sender taker)))  ;;transfer
+  (try! (as-contract (transfer-ft ft-asset-contract amt tx-sender divide)))  ;;transfer
   
   ;; Transfer the STX payment from the purchaser to the creator of the ft
-  (try! (stx-transfer? total-payment taker (get maker listing))) ;;transfer
+  (try! (stx-transfer? total-payment divide (get maker listing))) ;;transfer
   
   ;; Transfer the transaction fee to the contract owner 
-  (if (not (is-eq taker (var-get contract-owner)))
-    (try! (stx-transfer? tx-fee taker (var-get contract-owner)))
+  (if (not (is-eq divide (var-get contract-owner)))
+    (try! (stx-transfer? tx-fee divide (var-get contract-owner)))
     true
   ) ;;transfer
   
@@ -465,7 +482,7 @@
         total-payment: total-payment,
         tx-fee: tx-fee,
         fee-percentage: (var-get transaction-fee-bps),
-        buyer: taker,
+        buyer: divide,
         seller: (get maker listing)
       })
       (ok true)
@@ -475,7 +492,7 @@
       (map-set listings-ft { maker:contract-caller, contractAddr:(contract-of ft-asset-contract)}
         {
           maker: (get maker listing),
-          taker: none,
+          divide: (get divide listing),
           amt: remaining-amt,
           ft-asset-contract: (get ft-asset-contract listing),
           expiry: (get expiry listing),
@@ -490,7 +507,7 @@
         total-payment: total-payment,
         tx-fee: tx-fee,
         fee-percentage: (var-get transaction-fee-bps),
-        buyer: taker,
+        buyer: divide,
         seller: (get maker listing)
       })
       (ok true)
@@ -509,8 +526,8 @@
  (let (
   ;; Verify the given listing ID exists
   (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr:(contract-of ft-asset-contract)}) ERR_UNKNOWN_LISTING))
-  ;; Set the ft's taker to the purchaser (caller of the function)
-  (taker tx-sender)
+  ;; Set the ft's divide to the purchaser (caller of the function)
+  (divide tx-sender)
   ;; Calculate remaining amount
   (remaining-amt (- (get amt listing) amt))
   ;; Calculate total payment (price per unit * amount)
@@ -531,14 +548,14 @@
   ) ERR_PAYMENT_ASSET_MISMATCH) ;; remove this and put in fullfiill contract, some important
   
   ;; Transfer the ft to the purchaser (caller of the function)
-  (try! (as-contract (transfer-ft ft-asset-contract amt tx-sender taker)))
+  (try! (as-contract (transfer-ft ft-asset-contract amt tx-sender divide)))
   
   ;; Transfer the tokens as payment from the purchaser to the creator of the ft
-  (try! (transfer-ft payment-asset-contract total-payment taker (get maker listing)))
+  (try! (transfer-ft payment-asset-contract total-payment divide (get maker listing)))
   
   ;; Transfer the transaction fee to the contract owner (using same payment token)
-  (if (not (is-eq taker (var-get contract-owner)))
-    (try! (transfer-ft payment-asset-contract tx-fee taker (var-get contract-owner)))
+  (if (not (is-eq divide (var-get contract-owner)))
+    (try! (transfer-ft payment-asset-contract tx-fee divide (var-get contract-owner)))
     true
   ) ;;transfer
   
@@ -554,7 +571,7 @@
         total-payment: total-payment,
         tx-fee: tx-fee,
         fee-percentage: (var-get transaction-fee-bps),
-        buyer: taker,
+        buyer: divide,
         seller: (get maker listing)
       })
       (ok true)
@@ -564,7 +581,7 @@
       (map-set listings-ft { maker:contract-caller, contractAddr:(contract-of ft-asset-contract)}
         {
           maker: (get maker listing),
-          taker: none,
+          divide: (get divide listing),
           amt: remaining-amt,
           ft-asset-contract: (get ft-asset-contract listing),
           expiry: (get expiry listing),
@@ -579,7 +596,7 @@
         total-payment: total-payment,
         tx-fee: tx-fee,
         fee-percentage: (var-get transaction-fee-bps),
-        buyer: taker,
+        buyer: divide,
         seller: (get maker listing)
       })
       (ok true)

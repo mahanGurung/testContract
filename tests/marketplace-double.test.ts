@@ -34,7 +34,7 @@ describe("Marketplace Double Contract", () => {
       const { result } = simnet.callReadOnlyFn(
         marketplace,
         "get-contract-owner",
-        [Cl.principal(deployer)],
+        [],
         deployer
       );
 
@@ -70,7 +70,7 @@ describe("Marketplace Double Contract", () => {
       const res = simnet.callPublicFn(
         marketplace,
         "set-whitelisted",
-        [Cl.principal(tokenA), Cl.bool(true), Cl.bool(false)],
+        [Cl.principal(tokenA), Cl.bool(true), Cl.some(Cl.uint(1000000))],
         deployer
       );
 
@@ -81,7 +81,7 @@ describe("Marketplace Double Contract", () => {
       const res = simnet.callPublicFn(
         marketplace,
         "set-whitelisted",
-        [Cl.principal(tokenB), Cl.bool(true), Cl.bool(false)],
+        [Cl.principal(tokenB), Cl.bool(true), Cl.none()],
         wallet1
       );
 
@@ -92,7 +92,7 @@ describe("Marketplace Double Contract", () => {
       simnet.callPublicFn(
         marketplace,
         "set-whitelisted",
-        [Cl.principal(tokenA), Cl.bool(true), Cl.bool(false)],
+        [Cl.principal(tokenA), Cl.bool(true), Cl.some(Cl.uint(1000000))],
         deployer
       );
 
@@ -143,14 +143,14 @@ describe("Marketplace Double Contract", () => {
       simnet.callPublicFn(
         marketplace,
         "set-whitelisted",
-        [Cl.principal(tokenA), Cl.bool(true), Cl.bool(false)],
+        [Cl.principal(tokenA), Cl.bool(true), Cl.some(Cl.uint(10000000))],
         deployer
       );
 
       simnet.callPublicFn(
         marketplace,
         "set-whitelisted",
-        [Cl.principal(tokenB), Cl.bool(true), Cl.bool(true)],
+        [Cl.principal(tokenB), Cl.bool(true), Cl.none()],
         deployer
       );
     });
@@ -160,7 +160,7 @@ describe("Marketplace Double Contract", () => {
 
       const listing = Cl.tuple({
         taker: Cl.none(),
-        amt: Cl.uint(1000),
+        amt: Cl.uint(10000000),
         expiry: Cl.uint(10000),
         price: Cl.uint(5),
         "payment-asset-contract": Cl.some(Cl.contractPrincipal(deployer, "mock-token-a"))
@@ -211,9 +211,8 @@ describe("Marketplace Double Contract", () => {
         "update-listing-ft",
         [
           Cl.contractPrincipal(deployer, 'mock-token'),
-          Cl.some(Cl.uint(3000000)),
-          Cl.none(),
-          Cl.none()
+          
+          Cl.uint(10000)
         ],
         deployer
       );
@@ -226,7 +225,7 @@ describe("Marketplace Double Contract", () => {
 
       const listing = Cl.tuple({
         taker: Cl.none(),
-        amt: Cl.uint(1000),
+        amt: Cl.uint(10000000),
         expiry: Cl.uint(20000),
         price: Cl.uint(3),
         "payment-asset-contract": Cl.some(Cl.principal(tokenB))
@@ -261,8 +260,8 @@ describe("Marketplace Double Contract", () => {
   describe("Fulfillment", () => {
 
     beforeEach(() => {
-      simnet.callPublicFn(marketplace, "set-whitelisted", [Cl.principal(tokenA), Cl.bool(true), Cl.bool(false)], deployer);
-      simnet.callPublicFn(marketplace, "set-whitelisted", [Cl.principal(tokenB), Cl.bool(true), Cl.bool(true)], deployer);
+      simnet.callPublicFn(marketplace, "set-whitelisted", [Cl.principal(tokenA), Cl.bool(true), Cl.some(Cl.uint(10000000))], deployer);
+      simnet.callPublicFn(marketplace, "set-whitelisted", [Cl.principal(tokenB), Cl.bool(true), Cl.none()], deployer);          
     });
 
     it("buyer can fulfil using FT", () => {
