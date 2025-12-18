@@ -16,6 +16,14 @@ plan:
             cost: 8390
             path: "./.cache/requirements/STM6S3AESTK9NAYE3Z7RS00T11ER8JJCDNTKG711.sip-010-trait.clar"
             clarity-version: 3
+        - requirement-publish:
+            contract-id: ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits
+            remap-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            remap-principals:
+              ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            cost: 1480
+            path: "./.cache/requirements/ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits.clar"
+            clarity-version: 3
         - contract-publish:
             contract-name: marketplace
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
@@ -46,15 +54,15 @@ plan:
             clarity-version: 3
         - contract-publish:
             contract-name: mock-token
-            expected-sender: ST2ST2H80NP5C9SPR4ENJ1Z9CDM9PKAJVPYWPQZ50
-            cost: 67390
+            expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            cost: 59180
             path: contracts/mock-token.clar
             anchor-block-only: true
             clarity-version: 3
         - contract-publish:
             contract-name: non-whitelisted-ft
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 18550
+            cost: 16790
             path: contracts/non-whitelisted-ft.clar
             anchor-block-only: true
             clarity-version: 3
@@ -66,14 +74,3 @@ plan:
             anchor-block-only: true
             clarity-version: 3
       epoch: "3.1"
-    - id: 1
-      transactions:
-        - requirement-publish:
-            contract-id: ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits
-            remap-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            remap-principals:
-              ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 1480
-            path: "./.cache/requirements/ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits.clar"
-            clarity-version: 3
-      epoch: "3.2"
