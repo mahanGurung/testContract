@@ -16,11 +16,32 @@ plan:
             cost: 8390
             path: "./.cache/requirements/STM6S3AESTK9NAYE3Z7RS00T11ER8JJCDNTKG711.sip-010-trait.clar"
             clarity-version: 3
+      epoch: "3.1"
+    - id: 1
+      transactions:
+        - requirement-publish:
+            contract-id: ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits
+            remap-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            remap-principals:
+              ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            cost: 1480
+            path: "./.cache/requirements/ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits.clar"
+            clarity-version: 3
+      epoch: "3.2"
+    - id: 2
+      transactions:
+        - contract-publish:
+            contract-name: token-trait
+            expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            cost: 1910
+            path: contracts/token-trait.clar
+            anchor-block-only: true
+            clarity-version: 3
         - contract-publish:
             contract-name: marketplace
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 189030
-            path: contracts/marketplace.clar
+            cost: 280510
+            path: contracts/marketplace-double.clar
             anchor-block-only: true
             clarity-version: 3
         - contract-publish:
@@ -33,7 +54,7 @@ plan:
         - contract-publish:
             contract-name: marketplace-fulfill
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 32260
+            cost: 82470
             path: contracts/marketplace-fulfill.clar
             anchor-block-only: true
             clarity-version: 3
@@ -45,10 +66,10 @@ plan:
             anchor-block-only: true
             clarity-version: 3
         - contract-publish:
-            contract-name: mock-token
+            contract-name: mock-token-a
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 59210
-            path: contracts/mock-token.clar
+            cost: 67820
+            path: contracts/mock-token-a.clar
             anchor-block-only: true
             clarity-version: 3
         - contract-publish:
@@ -65,15 +86,11 @@ plan:
             path: contracts/staking-interface.clar
             anchor-block-only: true
             clarity-version: 3
-      epoch: "3.1"
-    - id: 1
-      transactions:
-        - requirement-publish:
-            contract-id: ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits
-            remap-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            remap-principals:
-              ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 1480
-            path: "./.cache/requirements/ST1VZ3YGJKKC8JSSWMS4EZDXXJM7QWRBEZ0ZWM64E.stacking-traits.clar"
+        - contract-publish:
+            contract-name: test
+            expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+            cost: 13660
+            path: contracts/test.clar
+            anchor-block-only: true
             clarity-version: 3
-      epoch: "3.2"
+      epoch: "3.3"

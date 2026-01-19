@@ -3,7 +3,7 @@
 ;; - Listing expiry in block height.
 ;; - The payment asset, either STX or a SIP010 fungible token.
 ;; - The ft price in said payment asset.
-;; - An optional intended divide. If set, only that principal will be able to fulfil the listing.
+;; - An optional intended taker. If set, only that principal will be able to fulfil the listing.
 ;;
 ;; Source: https://github.com/clarity-lang/book/tree/main/projects/tiny-market
 
@@ -31,11 +31,18 @@
 (define-constant ERR_LISTING_EXPIRED (err u2002))
 (define-constant ERR_FT_ASSET_MISMATCH (err u2003))
 (define-constant ERR_PAYMENT_ASSET_MISMATCH (err u2004))
-(define-constant ERR_MAKER_divide_EQUAL (err u2005))
-(define-constant ERR_UNINTENDED_divide (err u2006))
+(define-constant ERR_MAKER_taker_EQUAL (err u2005))
+(define-constant ERR_UNINTENDED_taker (err u2006))
 (define-constant ERR_ASSET_CONTRACT_NOT_WHITELISTED (err u2007))
 (define-constant ERR_PAYMENT_CONTRACT_NOT_WHITELISTED (err u2008))
 (define-constant ERR_AMOUNT_IS_BIGGER (err u2009))
+(define-constant ERR_USER_BOUGHT_NOTHING (err u2010))
+(define-constant ERR_LISTING_EXIST (err u2011))
+(define-constant ERR_MILESTONE_NOT_COMP (err u2012))
+(define-constant ERR_BIGGER_CURRENT_MILESTONE (err u2013))
+(define-constant ERR_NO_PAYMENT_CONTRACT (err u2014))
+
+
 
 
 ;; emergency and fee errors
@@ -58,21 +65,32 @@
 (define-data-var transaction-fee-bps uint u500) ;; Default 5% = 500 basis points
 (define-constant BPS-DENOM u10000) ;; denominator for basis points
 
+
 ;; Define a map data structure for the asset listings-ft
 (define-map listings-ft
   {maker: principal, contractAddr: principal}
   {
     maker: principal,
-    divide: uint,
     amt: uint,
     ft-asset-contract: principal,
     expiry: uint,
     price: uint,
-    payment-asset-contract: (optional principal)
+    payment-asset-contract: (optional principal),
+    milestone: uint,
+    total-collected: uint
   }
 )
 
-(define-map asset-m-pool {investor: principal, asset: principal}  uint )
+
+
+(define-map asset-m-pool 
+  {investor: principal, asset: principal}  
+  {
+    token-amt: uint, 
+    invested-amt: uint, 
+    investedMilestone: uint,
+  } 
+)
 
 ;; Used for unique IDs for each listing
 (define-data-var listing-ft-nonce uint u0)
@@ -96,7 +114,7 @@
 
 ;; This marketplace requires any contracts used for assets or payments to be whitelisted
 ;; by the contract owner of this (marketplace) contract.
-(define-map whitelisted-asset-contracts principal {isWhitelisted: bool, amount: uint})
+(define-map whitelisted-asset-contracts principal {isWhitelisted: bool, amount: uint, divide: uint})
 
 (define-map whitelisted-payment-contracts principal bool)
 ;; (map-set whitelisted-asset-contracts .mock-token true) ;;test
@@ -135,6 +153,10 @@
 
 (define-read-only (get-listing-map (assetOwner principal) (ft-asset-contract principal))
   (map-get? listings-ft { maker: assetOwner, contractAddr: ft-asset-contract})
+)
+
+(define-read-only (get-user-investment-map (assetOwner principal) (ft-asset-contract principal))
+  (map-get? asset-m-pool { investor: assetOwner, asset: ft-asset-contract})
 )
 
 (define-read-only (get-emergency-stop)
@@ -204,13 +226,13 @@
 
 ;; Only the contract owner of this (marketplace) contract can whitelist an asset contract.
 ;; test
-(define-public (set-whitelisted (asset-contract principal) (whitelisted bool) (amount (optional uint)))
+(define-public (set-whitelisted (asset-contract principal) (whitelisted bool) (divide uint) (amount (optional uint)))
   (begin
     (try! (assert-not-paused))
     (asserts! (is-eq (var-get contract-owner) contract-caller) ERR_UNAUTHORISED)
     (match amount asset-amount 
        (begin 
-      (map-set whitelisted-asset-contracts asset-contract {isWhitelisted: whitelisted, amount: asset-amount})
+      (map-set whitelisted-asset-contracts asset-contract {isWhitelisted: whitelisted, amount: asset-amount, divide: divide})
       (print {
               whitelisted-asset: asset-contract,
               isWhitelisted: whitelisted
@@ -245,7 +267,6 @@
   (ft-asset-contract <ft-trait>)
   (owner-asset-contract <call-owner>)
   (ft-asset {
-    divide: uint,
     amt: uint,
     expiry: uint,
     price: uint,
@@ -261,9 +282,11 @@
         ;; (listing-id (var-get listing-ft-nonce))
             (asset-owner (unwrap! (contract-call? owner-asset-contract get-owner) ERR_GETTING_ASSET_OWNER))
             (whitelisted-info (map-get? whitelisted-asset-contracts (contract-of ft-asset-contract)))
+            (listing (is-none (map-get? listings-ft { maker: asset-owner, contractAddr: (contract-of ft-asset-contract)}))) 
             (is-eq-amount (unwrap! (get amount whitelisted-info) ERR_AMOUNT_NOT_FOUND))
             (ft-amt (get amt ft-asset))
       )
+        (asserts! listing ERR_LISTING_EXIST)
         (asserts! (is-eq is-eq-amount ft-amt) ERR_AMOUNT_NOT_EQUAL)
           
         (asserts! (is-eq asset-owner contract-caller) ERR_NOT_ASSET_OWNER)
@@ -291,8 +314,8 @@
           (as-contract tx-sender)
         ))
         ;; List the FT in the listings map
-        (map-set listings-ft {maker:tx-sender, contractAddr: (contract-of ft-asset-contract)} (merge
-          { maker: tx-sender, ft-asset-contract: (contract-of ft-asset-contract) }
+        (map-set listings-ft {maker: tx-sender, contractAddr: (contract-of ft-asset-contract)} (merge
+          { maker: tx-sender, ft-asset-contract: (contract-of ft-asset-contract), milestone: u0, total-collected: u0 }
           ft-asset
         ))
         ;; Increment the nonce to use for the next unique listing ID
@@ -305,7 +328,6 @@
             price: (get price ft-asset),
             expiry: (get expiry ft-asset),
             maker: tx-sender,
-            divide: (get divide ft-asset),
             asset-contract: ft-asset-contract,
             payment-asset-contract: (get payment-asset-contract ft-asset)
           })
@@ -407,15 +429,16 @@
       ;; )
       
       ;; Update the listing in the map
-      (map-set listings-ft { maker:contract-caller, contractAddr:(contract-of ft-asset-contract)}
+      (map-set listings-ft { maker: contract-caller, contractAddr:(contract-of ft-asset-contract)}
         {
           maker: (get maker listing),
-          divide: (get divide listing),
           amt: current-amt,
           ft-asset-contract: (get ft-asset-contract listing),
           expiry: new-expiry,
           price: current-price,
-          payment-asset-contract: (get payment-asset-contract listing)
+          payment-asset-contract: (get payment-asset-contract listing),
+          milestone: (get milestone listing),
+          total-collected: (get total-collected listing)
         }
       )
       
@@ -432,178 +455,591 @@
 )
 
 
-;; Public function to purchase a listing using STX as payment
-(define-public (fulfil-listing-ft-stx (ft-asset-contract <ft-trait>) (asset-owner principal) (amt uint))
- (let (
-  ;; Verify the given listing ID exists
-  (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr:(contract-of ft-asset-contract)}) ERR_UNKNOWN_LISTING))
-  ;; Set the ft's divide to the purchaser (caller of the function)
-  (divide tx-sender)
-  ;; Calculate remaining amount
-  (remaining-amt (- (get amt listing) amt))
-  
-  ;; Calculate total payment (price per unit * amount)
-  (total-payment (* (get price listing) amt))
-  ;; Changed: Calculate transaction fee as percentage of total payment
-  (tx-fee (calculate-transaction-fee total-payment))
-  ;; Calculate total cost (payment + fee)
-  (total-cost (+ total-payment tx-fee))
- )
-  ;; Check if contract is paused
-  (try! (assert-not-paused))
-  ;; Validate that the purchase can be fulfilled
-  (try! (is-protocol-caller fulfill-role contract-caller))
-  ;; Check if requested amount is valid
-  (asserts! (>= (get amt listing) amt) ERR_AMOUNT_IS_BIGGER) ;;remove
-  ;; Check that payment asset is STX (none means STX)
-  (asserts! (is-none (get payment-asset-contract listing)) ERR_PAYMENT_ASSET_MISMATCH) ;;remove and put in fulfill contact is-none important
-  
-  ;; Transfer the ft to the purchaser (caller of the function)
-  (try! (as-contract (transfer-ft ft-asset-contract amt tx-sender divide)))  ;;transfer
-  
-  ;; Transfer the STX payment from the purchaser to the creator of the ft
-  (try! (stx-transfer? total-payment divide (get maker listing))) ;;transfer
-  
-  ;; Transfer the transaction fee to the contract owner 
-  (if (not (is-eq divide (var-get contract-owner)))
-    (try! (stx-transfer? tx-fee divide (var-get contract-owner)))
-    true
-  ) ;;transfer
-  
-  ;; Update or remove the listing based on remaining amount
-  (if (is-eq remaining-amt u0)
-    ;; If no amount remains, delete the listing
-    (begin
-      (map-delete listings-ft { maker:contract-caller, contractAddr:(contract-of ft-asset-contract)})
-      (print {
-        topic: "listing-fulfilled-stx",
-        amt: amt,
-        remaining-amt: remaining-amt,
-        total-payment: total-payment,
-        tx-fee: tx-fee,
-        fee-percentage: (var-get transaction-fee-bps),
-        buyer: divide,
-        seller: (get maker listing)
-      })
-      (ok true)
-    )
-    ;; If amount remains, update the listing
-    (begin
-      (map-set listings-ft { maker:contract-caller, contractAddr:(contract-of ft-asset-contract)}
-        {
-          maker: (get maker listing),
-          divide: (get divide listing),
-          amt: remaining-amt,
-          ft-asset-contract: (get ft-asset-contract listing),
-          expiry: (get expiry listing),
-          price: (get price listing),
-          payment-asset-contract: (get payment-asset-contract listing)
-        }
+
+
+;; (define-public (reserve (ft-asset-contract principal) (asset-owner principal) (amt uint)) 
+;;   (let (
+;;     ;; listing information
+;;     (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr: ft-asset-contract}) ERR_UNKNOWN_LISTING))
+    
+;;     (total-collect (get total-collected listing))
+
+;;     (listing-price (get price listing))
+
+;;     (listing-total-collected (get total-collected listing))
+
+;;     ;; token of the listing info got from whitelisted
+;;     (token-info (unwrap! (map-get? whitelisted-asset-contracts ft-asset-contract) ERR_UNKNOWN_LISTING))
+
+    
+
+;;     ;; initial token amount ;; help in the dividing the milestone amount because it is static
+;;     (total-token-amt (get amount token-info))
+
+
+;;     ;; how many milestone
+;;     (milestone (get divide token-info))
+
+;;     (divide-token-by (/ total-token-amt milestone))
+
+    
+;;     ;; Calculate remaining amount
+;;     (remaining-amt (- (get amt listing) amt))
+
+;;     (bought-amt (- total-token-amt remaining-amt))
+
+;;     (complete-milestone (/ bought-amt divide-token-by))
+
+;;     (listing-milestone (get milestone listing))
+
+;;     (user-side-milestone-progress (if (is-eq complete-milestone milestone) complete-milestone (+ complete-milestone u1))) 
+
+;;     ;; Amount user have invested in token
+;;     (user-amt-pool (default-to {token-amt: u0, invested-amt: u0, investedMilestone: user-side-milestone-progress} (map-get? asset-m-pool {investor: tx-sender, asset: ft-asset-contract})))
+    
+;;     (user-token-amount (get token-amt user-amt-pool))
+
+;;     (invested-amount (get invested-amt user-amt-pool))
+
+;;     (invested-milestone (get investedMilestone user-amt-pool))
+
+;;     ;; (divide-last-investment-milestone (if (is-eq complete-milestone u0) u1 complete-milestone))
+    
+;;     ;; Calculate total payment (price per unit * amount)
+;;     (total-payment (* listing-price amt))
+
+;;     (first-milestone-inside-amt (- divide-token-by u1))
+
+;;     (milestone-inside-amt (+ (* first-milestone-inside-amt user-side-milestone-progress) (- user-side-milestone-progress u1) ))
+    
+;;   ) 
+;;     (try! (assert-not-paused))
+;;     (try! (is-protocol-caller fulfill-role contract-caller))
+    
+;;     ;; Check that payment asset is STX (none means STX)
+;;     (asserts! (is-none (get payment-asset-contract listing)) ERR_PAYMENT_ASSET_MISMATCH)
+;;     (asserts! (is-eq listing-milestone complete-milestone) ERR_MILESTONE_NOT_COMP)
+;;     (asserts! (is-eq user-side-milestone-progress invested-milestone) ERR_MILESTONE_NOT_COMP)
+;;     (try! (stx-transfer? total-payment tx-sender (as-contract tx-sender)))
+    
+;;     (if (or (is-eq total-token-amt bought-amt) (is-eq milestone-inside-amt bought-amt))
+;;       (begin
+;;          (map-set listings-ft 
+;;           { 
+;;             maker: asset-owner, 
+;;             contractAddr: ft-asset-contract
+;;           }
+
+;;           {
+;;             maker: (get maker listing),
+;;             amt: remaining-amt, 
+;;             ft-asset-contract: (get ft-asset-contract listing),
+;;             expiry: (get expiry listing),
+;;             price: listing-price,
+;;             payment-asset-contract: none,
+;;             milestone: (if (is-eq total-token-amt bought-amt) complete-milestone (+ complete-milestone u1)),
+;;             total-collected: (+ listing-total-collected (* first-milestone-inside-amt listing-price))
+;;           }
+;;         )
+        
+;;         (map-set asset-m-pool 
+;;           {
+;;             investor: tx-sender, 
+;;             asset: ft-asset-contract
+;;           } 
+                        
+;;           {
+;;             token-amt:(+ user-token-amount amt),
+;;             invested-amt: (+ total-payment invested-amount),
+;;             investedMilestone: invested-milestone
+;;           }
+;;         )
+
+;;         (print 
+;;           {
+;;             invested-amount: (+ total-payment invested-amount),
+;;             token-amount: amt
+;;           }
+;;         )
+
+;;         (ok true) 
+;;       )
+
+;;       (begin 
+;;         (asserts! (> milestone-inside-amt bought-amt) ERR_BIGGER_CURRENT_MILESTONE)
+;;         (map-set listings-ft 
+;;           { 
+;;             maker: asset-owner, 
+;;             contractAddr: ft-asset-contract
+;;           }
+
+;;           {
+;;             maker: (get maker listing),
+;;             amt: remaining-amt,
+;;             ft-asset-contract: (get ft-asset-contract listing),
+;;             expiry: (get expiry listing),
+;;             price: listing-price,
+;;             payment-asset-contract: none,
+;;             milestone: complete-milestone,
+;;             total-collected: listing-total-collected
+;;           }
+;;         )
+        
+;;         (map-set asset-m-pool 
+;;           {
+;;             investor: tx-sender, 
+;;             asset: ft-asset-contract
+;;           } 
+                        
+;;           {
+;;             token-amt:(+ user-token-amount amt),
+;;             invested-amt: (+ total-payment invested-amount),
+;;             investedMilestone: invested-milestone
+;;           }
+;;         )
+
+;;         (print 
+;;           {
+;;             invested-amount: (+ total-payment invested-amount),
+;;             token-amount: amt,
+;;             listing-remaining-amt: remaining-amt,
+;;             print-path: u1
+;;           }
+;;         )
+
+;;         (ok true)
+      
+;;       )
+
+;;     )
+    
+
+    
+
+;;   )
+;; )
+
+
+
+(define-public (reserve (ft-asset-contract principal) (asset-owner principal) (amt uint)) 
+  (let (
+    ;; listing information
+    (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr: ft-asset-contract}) ERR_UNKNOWN_LISTING))
+    
+    (total-collect (get total-collected listing))
+
+    (listing-price (get price listing))
+
+    (listing-total-collected (get total-collected listing))
+
+    ;; token of the listing info got from whitelisted
+    (token-info (unwrap! (map-get? whitelisted-asset-contracts ft-asset-contract) ERR_UNKNOWN_LISTING))
+
+    
+
+    ;; initial token amount ;; help in the dividing the milestone amount because it is static
+    (total-token-amt (get amount token-info))
+
+
+    ;; how many milestone
+    (milestone (get divide token-info))
+
+    (divide-token-by (/ total-token-amt milestone))
+
+    
+    ;; Calculate remaining amount
+    (remaining-amt (- (get amt listing) amt))
+
+    (bought-amt (- total-token-amt remaining-amt))
+
+    (complete-milestone (/ bought-amt divide-token-by))
+
+    (listing-milestone (get milestone listing))
+
+    (user-side-milestone-progress (if (is-eq complete-milestone milestone) complete-milestone (+ complete-milestone u1))) 
+
+    ;; Amount user have invested in token
+    (user-amt-pool (default-to {token-amt: u0, invested-amt: u0, investedMilestone: user-side-milestone-progress} (map-get? asset-m-pool {investor: tx-sender, asset: ft-asset-contract})))
+    
+    (user-token-amount (get token-amt user-amt-pool))
+
+    (invested-amount (get invested-amt user-amt-pool))
+
+    (invested-milestone (get investedMilestone user-amt-pool))
+    
+    ;; Calculate total payment (price per unit * amount)
+    (total-payment (* listing-price amt))
+
+    (milestone-completion-amt (* divide-token-by user-side-milestone-progress))
+    
+  ) 
+    (try! (assert-not-paused))
+    (try! (is-protocol-caller fulfill-role contract-caller))
+    
+    ;; Check that payment asset is STX (none means STX)
+    (asserts! (is-none (get payment-asset-contract listing)) ERR_PAYMENT_ASSET_MISMATCH)
+    (asserts! (is-eq listing-milestone complete-milestone) ERR_MILESTONE_NOT_COMP)
+    (asserts! (is-eq user-side-milestone-progress invested-milestone) ERR_MILESTONE_NOT_COMP)
+    (try! (stx-transfer? total-payment tx-sender (as-contract tx-sender)))
+    
+    (if (is-eq milestone-completion-amt bought-amt)
+      (begin
+         (map-set listings-ft 
+          { 
+            maker: asset-owner, 
+            contractAddr: ft-asset-contract
+          }
+
+          {
+            maker: (get maker listing),
+            amt: remaining-amt, 
+            ft-asset-contract: (get ft-asset-contract listing),
+            expiry: (get expiry listing),
+            price: listing-price,
+            payment-asset-contract: none,
+            milestone: complete-milestone,
+            total-collected: (+ listing-total-collected (* divide-token-by listing-price))
+          }
+        )
+        
+        (map-set asset-m-pool 
+          {
+            investor: tx-sender, 
+            asset: ft-asset-contract
+          } 
+                        
+          {
+            token-amt:(+ user-token-amount amt),
+            invested-amt: (+ total-payment invested-amount),
+            investedMilestone: invested-milestone
+          }
+        )
+
+        (print 
+          {
+            invested-amount: (+ total-payment invested-amount),
+            token-amount: amt
+          }
+        )
+
+        (ok true) 
       )
-      (print {
-        topic: "listing-partially-fulfilled-stx",
-        amt: amt,
-        remaining-amt: remaining-amt,
-        total-payment: total-payment,
-        tx-fee: tx-fee,
-        fee-percentage: (var-get transaction-fee-bps),
-        buyer: divide,
-        seller: (get maker listing)
-      })
-      (ok true)
+
+      (begin 
+        (asserts! (> milestone-completion-amt bought-amt) ERR_BIGGER_CURRENT_MILESTONE)
+        (map-set listings-ft 
+          { 
+            maker: asset-owner, 
+            contractAddr: ft-asset-contract
+          }
+
+          {
+            maker: (get maker listing),
+            amt: remaining-amt,
+            ft-asset-contract: (get ft-asset-contract listing),
+            expiry: (get expiry listing),
+            price: listing-price,
+            payment-asset-contract: none,
+            milestone: complete-milestone,
+            total-collected: listing-total-collected
+          }
+        )
+        
+        (map-set asset-m-pool 
+          {
+            investor: tx-sender, 
+            asset: ft-asset-contract
+          } 
+                        
+          {
+            token-amt:(+ user-token-amount amt),
+            invested-amt: (+ total-payment invested-amount),
+            investedMilestone: invested-milestone
+          }
+        )
+
+        (print 
+          {
+            invested-amount: (+ total-payment invested-amount),
+            token-amount: amt,
+            listing-remaining-amt: remaining-amt,
+            print-path: u1
+          }
+        )
+
+        (ok true)
+      
+      )
+
     )
+    
+
+    
+
   )
- )
 )
 
-;; Public function to purchase a listing using another fungible token as payment
-(define-public (fulfil-ft-listing-ft
- (ft-asset-contract <ft-trait>)
- (payment-asset-contract <ft-trait>)
- (asset-owner principal)
- (amt uint)
-)
- (let (
-  ;; Verify the given listing ID exists
-  (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr:(contract-of ft-asset-contract)}) ERR_UNKNOWN_LISTING))
-  ;; Set the ft's divide to the purchaser (caller of the function)
-  (divide tx-sender)
-  ;; Calculate remaining amount
-  (remaining-amt (- (get amt listing) amt))
-  ;; Calculate total payment (price per unit * amount)
-  (total-payment (* (get price listing) amt))
-  ;; Changed: Calculate transaction fee as percentage of total payment
-  (tx-fee (calculate-transaction-fee total-payment))
- )
-  ;; Check if contract is paused
-  (try! (assert-not-paused))
-  ;; Validate that the purchase can be fulfilled
-  (try! (is-protocol-caller fulfill-role contract-caller))
-  ;; Check if requested amount is valid
-  (asserts! (>= (get amt listing) amt) ERR_AMOUNT_IS_BIGGER)
-  ;; Check that payment asset contract matches
-  (asserts! (is-eq 
-    (some (contract-of payment-asset-contract)) 
-    (get payment-asset-contract listing)
-  ) ERR_PAYMENT_ASSET_MISMATCH) ;; remove this and put in fullfiill contract, some important
-  
-  ;; Transfer the ft to the purchaser (caller of the function)
-  (try! (as-contract (transfer-ft ft-asset-contract amt tx-sender divide)))
-  
-  ;; Transfer the tokens as payment from the purchaser to the creator of the ft
-  (try! (transfer-ft payment-asset-contract total-payment divide (get maker listing)))
-  
-  ;; Transfer the transaction fee to the contract owner (using same payment token)
-  (if (not (is-eq divide (var-get contract-owner)))
-    (try! (transfer-ft payment-asset-contract tx-fee divide (var-get contract-owner)))
-    true
-  ) ;;transfer
-  
-  ;; Update or remove the listing based on remaining amount
-  (if (is-eq remaining-amt u0)
-    ;; If no amount remains, delete the listing
-    (begin
-      (map-delete listings-ft { maker:contract-caller, contractAddr:(contract-of ft-asset-contract)})
-      (print {
-        topic: "listing-fulfilled-ft",
-        amt: amt,
-        remaining-amt: remaining-amt,
-        total-payment: total-payment,
-        tx-fee: tx-fee,
-        fee-percentage: (var-get transaction-fee-bps),
-        buyer: divide,
-        seller: (get maker listing)
-      })
-      (ok true)
-    )
-    ;; If amount remains, update the listing
-    (begin
-      (map-set listings-ft { maker:contract-caller, contractAddr:(contract-of ft-asset-contract)}
-        {
-          maker: (get maker listing),
-          divide: (get divide listing),
-          amt: remaining-amt,
-          ft-asset-contract: (get ft-asset-contract listing),
-          expiry: (get expiry listing),
-          price: (get price listing),
-          payment-asset-contract: (get payment-asset-contract listing)
-        }
+
+(define-public (reserve-using-ft (ft-asset-contract principal) (asset-owner principal) (payment-contract <ft-trait>) (amt uint)) 
+  (let (
+    ;; listing information
+    (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr: ft-asset-contract}) ERR_UNKNOWN_LISTING))
+
+    (total-collect (get total-collected listing))
+
+    ;; token of the listing info got from whitelisted
+    (token-info (unwrap! (map-get? whitelisted-asset-contracts ft-asset-contract) ERR_UNKNOWN_LISTING))
+
+    
+
+    ;; initial token amount ;; help in the dividing the milestone amount because it is static
+    (total-token-amt (get amount token-info))
+
+
+    ;; how many milestone
+    (milestone (get divide token-info))
+
+    (divide-token-by (/ total-token-amt milestone))
+
+    
+    ;; Calculate remaining amount
+    (remaining-amt (- (get amt listing) amt))
+
+    (bought-amt (- total-token-amt remaining-amt))
+
+    (complete-milestone (/ bought-amt divide-token-by))
+
+    (listing-milestone (get milestone listing))
+
+    (user-side-milestone-progress (if (is-eq complete-milestone milestone) complete-milestone (+ complete-milestone u1))) 
+
+    ;; Amount user have invested in token
+    (user-amt-pool (default-to {token-amt: u0, invested-amt: u0, investedMilestone: user-side-milestone-progress} (map-get? asset-m-pool {investor: tx-sender, asset: ft-asset-contract})))
+    
+    (user-token-amount (get token-amt user-amt-pool))
+
+    (invested-amount (get invested-amt user-amt-pool))
+
+    (invested-milestone (get investedMilestone user-amt-pool))
+
+    (divide-last-investment-milestone (if (is-eq complete-milestone u0) u1 complete-milestone))
+    
+    ;; Calculate total payment (price per unit * amount)
+    (total-payment (* (get price listing) amt))
+
+    (milestone-inside-amt (+ (* (- divide-token-by u1) divide-last-investment-milestone) (- divide-last-investment-milestone u1) ))
+    
+  ) 
+    (try! (assert-not-paused))
+    (try! (is-protocol-caller fulfill-role contract-caller))
+    
+
+    
+    (asserts! (is-eq listing-milestone complete-milestone) ERR_MILESTONE_NOT_COMP)
+    (asserts! (is-eq user-side-milestone-progress invested-milestone) ERR_MILESTONE_NOT_COMP)
+    (try! (transfer-ft payment-contract total-payment tx-sender (as-contract tx-sender)))
+    
+    (if (is-eq milestone-inside-amt bought-amt)
+      (begin
+        (map-set listings-ft 
+          { 
+            maker: asset-owner, 
+            contractAddr: ft-asset-contract
+          }
+
+          {
+            maker: (get maker listing),
+            amt: remaining-amt,
+            ft-asset-contract: (get ft-asset-contract listing),
+            expiry: (get expiry listing),
+            price: (get price listing),
+            payment-asset-contract: (get payment-asset-contract listing),
+            milestone: (+ complete-milestone u1),
+            total-collected: (+ total-collect total-payment)
+
+          }
+        )
+        
+        (map-set asset-m-pool 
+          {
+            investor: tx-sender, 
+            asset: ft-asset-contract
+          } 
+                        
+          {
+            token-amt:(+ user-token-amount amt),
+            invested-amt: (+ total-payment invested-amount),
+            investedMilestone: invested-milestone
+          }
+        )
+
+        (print 
+          {
+            invested-amount: (+ total-payment invested-amount),
+            token-amount: amt
+          }
+        )
+
+        (ok true) 
       )
-      (print {
-        topic: "listing-partially-fulfilled-ft",
-        amt: amt,
-        remaining-amt: remaining-amt,
-        total-payment: total-payment,
-        tx-fee: tx-fee,
-        fee-percentage: (var-get transaction-fee-bps),
-        buyer: divide,
-        seller: (get maker listing)
-      })
+
+      (begin 
+        (asserts! (> milestone-inside-amt bought-amt) ERR_BIGGER_CURRENT_MILESTONE)
+        (map-set listings-ft 
+          { 
+            maker: asset-owner, 
+            contractAddr: ft-asset-contract
+          }
+
+          {
+            maker: (get maker listing),
+            amt: remaining-amt,
+            ft-asset-contract: (get ft-asset-contract listing),
+            expiry: (get expiry listing),
+            price: (get price listing),
+            payment-asset-contract: (get payment-asset-contract listing),
+            milestone: complete-milestone,
+            total-collected: (+ total-collect total-payment)
+          }
+        )
+        
+        (map-set asset-m-pool 
+          {
+            investor: tx-sender, 
+            asset: ft-asset-contract
+          } 
+                        
+          {
+            token-amt:(+ user-token-amount amt),
+            invested-amt: (+ total-payment invested-amount),
+            investedMilestone: invested-milestone
+          }
+        )
+
+        (print 
+          {
+            invested-amount: (+ total-payment invested-amount),
+            token-amount: amt
+          }
+        )
+
+        (ok true)
+      
+      )
+
+    )
+    
+
+    
+
+  )
+)
+
+
+
+(define-public (claim-after-success (ft-asset-contract <ft-trait>) (asset-owner principal))
+  (let (
+        (user-amt-pool (unwrap! (map-get? asset-m-pool {investor: contract-caller, asset: (contract-of ft-asset-contract)}) ERR_USER_BOUGHT_NOTHING))
+        (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr: (contract-of ft-asset-contract)}) ERR_UNKNOWN_LISTING))
+        (listing-milestone (get milestone listing))
+        (user-milestone (get investedMilestone user-amt-pool))
+        (user tx-sender)
+        
+
+
+  )
+    (begin 
+      (asserts! (>= listing-milestone user-milestone) ERR_MILESTONE_NOT_COMP)
+      (try! (as-contract (transfer-ft ft-asset-contract (get token-amt user-amt-pool) tx-sender user)))
+      (map-delete asset-m-pool {
+            investor: tx-sender, 
+            asset: (contract-of ft-asset-contract)
+          })
       (ok true)
     )
+
+
   )
- )
+  
+    
 )
+
+
+(define-public (claim-but-no-success-ft (ft-asset-contract <ft-trait>) (asset-owner principal) (payment-contract <ft-trait>)) 
+  (let (
+        (user-amt-pool (unwrap! (map-get? asset-m-pool {investor: contract-caller, asset: (contract-of ft-asset-contract)}) ERR_USER_BOUGHT_NOTHING))
+        (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr: (contract-of ft-asset-contract)}) ERR_UNKNOWN_LISTING))
+        (listing-milestone (get milestone listing))
+        (user-milestone (get investedMilestone user-amt-pool))
+        (payment-asset-contract (unwrap! (get payment-asset-contract listing) ERR_NO_PAYMENT_CONTRACT))
+        (user tx-sender)
+        
+
+
+  )
+    (begin 
+      (asserts! (<= burn-block-height (get expiry listing)) ERR_NOT_EXPIRY)
+      (asserts! (< listing-milestone user-milestone) ERR_MILESTONE_NOT_COMP)
+      (asserts! (is-eq (contract-of payment-contract) payment-asset-contract) ERR_PAYMENT_ASSET_MISMATCH)
+      (try! (as-contract (transfer-ft payment-contract (get invested-amt user-amt-pool) tx-sender user)))
+      (map-delete asset-m-pool {
+            investor: tx-sender, 
+            asset: (contract-of ft-asset-contract)
+          })
+      (ok true)
+    )
+
+
+  )
+)
+
+(define-public (claim-but-no-success-stx (ft-asset-contract <ft-trait>) (asset-owner principal)) 
+  (let (
+        (user-amt-pool (unwrap! (map-get? asset-m-pool {investor: contract-caller, asset: (contract-of ft-asset-contract)}) ERR_USER_BOUGHT_NOTHING))
+        (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr: (contract-of ft-asset-contract)}) ERR_UNKNOWN_LISTING))
+        (listing-milestone (get milestone listing))
+        (user-milestone (get investedMilestone user-amt-pool))
+        (user tx-sender)
+  )
+    (begin 
+      (asserts! (<= burn-block-height (get expiry listing)) ERR_NOT_EXPIRY)
+      (asserts! (is-none (get payment-asset-contract listing)) ERR_PAYMENT_ASSET_MISMATCH)
+      (asserts! (< listing-milestone user-milestone) ERR_MILESTONE_NOT_COMP)
+      (try! (as-contract (stx-transfer? (get invested-amt user-amt-pool) tx-sender user)))
+
+      (map-delete asset-m-pool {
+            investor: tx-sender, 
+            asset: (contract-of ft-asset-contract)
+          })
+      (ok true)
+    )
+
+
+  )
+
+)
+
+
+;; (define-public (asset-owner-claim-after-milestone-comp (ft-asset-contract <ft-trait>) (owner-asset-contract <call-owner>)) 
+;;   (begin
+;;     (asserts! (is-eq (contract-of ft-asset-contract) (contract-of owner-asset-contract)) ERR_FT_AND_CALL_NOT_EQUAL)
+
+;;     (let (
+;;     (asset-owner (unwrap! (contract-call? owner-asset-contract get-owner) ERR_GETTING_ASSET_OWNER))
+;;     ;; Verify the given listing ID exists
+;;     (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr: (contract-of ft-asset-contract)}) ERR_UNKNOWN_LISTING))
+;;     ;; Set the ft's taker to the purchaser (caller of the_function)
+    
+;;     )
+;;     ;; (try! (as-contract (stx-transfer? (get invested-amt user-amt-pool) tx-sender user)))
+    
+;;   )
+;;   )
+;; )
+
+
+
+
 
 (define-public (update-protocol-contract
 		(contract-type (buff 1))
@@ -624,3 +1060,5 @@
 		(ok true)
 	)
 )
+
+

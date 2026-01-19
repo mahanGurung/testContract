@@ -34,21 +34,21 @@
 
     ;; data maps
     (define-map admins principal bool)
-    (define-map locked-GFD principal {amount: uint, time: uint})
+    (define-map locked-MTA principal {amount: uint, time: uint})
     ;;
 
     ;; read only functions
     (define-read-only (get-balance (who principal)) (ok (ft-get-balance mock-token who)))
     (define-read-only (get-decimals) (ok u6))
     (define-read-only (get-name) (ok "mock-token"))
-    (define-read-only (get-symbol) (ok "GFD"))
+    (define-read-only (get-symbol) (ok "MTA"))
     (define-read-only (get-token-uri) (ok (var-get token-uri)))
     (define-read-only (get-total-supply) (ok (ft-get-supply mock-token)))
     (define-read-only (is-admin (user principal)) (default-to false (map-get? admins user)))
     (define-read-only (get-owner) (ok (var-get contract-owner)))
 
-    (define-read-only (get-locked-GFD (who principal)) 
-        (let ((lockedTrk (map-get? locked-GFD who)))
+    (define-read-only (get-locked-MTA (who principal)) 
+        (let ((lockedTrk (map-get? locked-MTA who)))
             (ok (default-to u0 (get amount lockedTrk)))
         )
     )
@@ -78,7 +78,7 @@
         )
     )
 
-    ;; User can burn their GFD token
+    ;; User can burn their MTA token
     (define-public (burn (amount uint))
         (begin 
             (asserts! (> amount u0) err-insufficient-amount)
@@ -130,8 +130,8 @@
             (asserts! (> lock-height burn-block-height) err-insufficient-height)
             (asserts! (<= amount (ft-get-balance mock-token sender)) err-insufficient-amount) ;; important: here remove tx-sender and add the sender
             (try! (ft-transfer? mock-token amount sender (as-contract tx-sender))) ;; important: here remove tx-sender and add the sender
-            (let ((current-locked (map-get? locked-GFD sender))) ;; important: here remove tx-sender and add the sender
-                (map-set locked-GFD sender { amount: (+ (default-to u0 (get amount current-locked)) amount), time:lock-height })) ;; important: here remove tx-sender and add the sender //
+            (let ((current-locked (map-get? locked-MTA sender))) ;; important: here remove tx-sender and add the sender
+                (map-set locked-MTA sender { amount: (+ (default-to u0 (get amount current-locked)) amount), time:lock-height })) ;; important: here remove tx-sender and add the sender //
             
             (print { event-type: "LockTrk", amount: amount, user: sender }) ;; important: here remove tx-sender and add the sender
             (ok true)
@@ -153,14 +153,14 @@
         (asserts! (is-eq (var-get contract-callable) contract-caller) err-contract-callable-only)
         (asserts! (> amount u0) err-insufficient-amount)
         
-        (let ((user-locked (map-get? locked-GFD sender)))
+        (let ((user-locked (map-get? locked-MTA sender)))
         (let ((locked-amount (default-to u0 (get amount user-locked)))
                 (locked-time (default-to u0 (get time user-locked))))
             (asserts! (<= amount locked-amount) err-insufficient-amount)
             (asserts! (> burn-block-height locked-time) err-insufficient-height)
 
             (try! (as-contract (ft-transfer? mock-token amount (as-contract tx-sender) sender)))
-            (map-set locked-GFD sender { amount: (- locked-amount amount), time: locked-time }) 
+            (map-set locked-MTA sender { amount: (- locked-amount amount), time: locked-time }) 
             (print { event-type: "UnlockTrk", amount: amount, user: sender })
             (ok true)
         )
@@ -168,12 +168,5 @@
     )
     )
 
-
-
-
-
-
-
-
-
-
+    (mint u100000000 tx-sender)
+    (mint u100000000 'ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG)
