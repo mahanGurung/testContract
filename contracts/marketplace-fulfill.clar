@@ -76,31 +76,31 @@
   )
 )
 
-;; (define-public (fulfil-ft-listing-ft
-;;   (ft-asset-contract <ft-trait>) 
-;;   (owner-asset-contract <call-owner>)
-;;   (payment-asset-contract <ft-trait>)
-;;   (amt uint)
-;; )
-;;   (begin 
-;;     (asserts! (is-eq (contract-of ft-asset-contract) (contract-of owner-asset-contract)) ERR_FT_AND_CALL_NOT_EQUAL)
-;;     (let (
-;;     (asset-owner (unwrap! (contract-call? owner-asset-contract get-owner) ERR_GETTING_ASSET_OWNER))
-;;     ;; Verify the given listing ID exists
-;;     (listing (unwrap! (contract-call? .marketplace get-listing-map asset-owner (contract-of ft-asset-contract)) ERR_UNKNOWN_LISTING))
-;;     ;; Set the ft's taker to the purchaser (caller of the_function)
-;;   )
-;;     ;; Validate that the purchase can be fulfilled
-;;     (try! (assert-can-fulfil-ft
-;;       (contract-of ft-asset-contract)
-;;       (some (contract-of payment-asset-contract))
-;;       listing
-;;     ))
-;;     (try! (contract-call? .marketplace fulfill-ft-listing-ft  ft-asset-contract payment-asset-contract asset-owner amt))
-;;     (ok true)
-;;   )
-;;   )
-;; )
+(define-public (fulfil-ft-listing-ft
+  (ft-asset-contract <ft-trait>) 
+  (owner-asset-contract <call-owner>)
+  (payment-asset-contract <ft-trait>)
+  (amt uint)
+)
+  (begin 
+    (asserts! (is-eq (contract-of ft-asset-contract) (contract-of owner-asset-contract)) ERR_FT_AND_CALL_NOT_EQUAL)
+    (let (
+    (asset-owner (unwrap! (contract-call? owner-asset-contract get-owner) ERR_GETTING_ASSET_OWNER))
+    ;; Verify the given listing ID exists
+    (listing (unwrap! (contract-call? .marketplace get-listing-map asset-owner (contract-of ft-asset-contract)) ERR_UNKNOWN_LISTING))
+    ;; Set the ft's taker to the purchaser (caller of the_function)
+  )
+    ;; Validate that the purchase can be fulfilled
+    (try! (assert-can-fulfil-ft
+      (contract-of ft-asset-contract)
+      (some (contract-of payment-asset-contract))
+      listing
+    ))
+    (try! (contract-call? .marketplace reserve-using-ft  (contract-of ft-asset-contract) asset-owner payment-asset-contract amt))
+    (ok true)
+  )
+  )
+)
 
 ;; read only functions
 ;;
