@@ -11,7 +11,7 @@
     ;;
 
     ;; token definitions
-    (define-fungible-token mock-token u1000000000)
+    (define-fungible-token mock-token u100000000000000)
     ;;
 
     ;; constants
