@@ -469,6 +469,7 @@ describe("asset-owner-claim-after-milestone-comp", () => {
       [
         Cl.contractPrincipal(deployer, "mock-token-a"),
         Cl.contractPrincipal(deployer, "mock-token-a")
+
       ],
       wallet1 // Called by non-owner
     );
@@ -599,11 +600,29 @@ describe("Fungible token payments", () => {
           deployer
       );
 
-      // Mint some payment tokens for wallet1
+      // Mint some payment tokens for wallets
       simnet.callPublicFn(
           "mock-token",
           "mint",
           [Cl.uint(1000000000), Cl.principal(wallet1)],
+          deployer
+      );
+      simnet.callPublicFn(
+          "mock-token",
+          "mint",
+          [Cl.uint(1000000000), Cl.principal(wallet2)],
+          deployer
+      );
+      simnet.callPublicFn(
+          "mock-token",
+          "mint",
+          [Cl.uint(1000000000), Cl.principal(wallet3)],
+          deployer
+      );
+      simnet.callPublicFn(
+          "mock-token",
+          "mint",
+          [Cl.uint(1000000000), Cl.principal(wallet4)],
           deployer
       );
   });
@@ -745,6 +764,181 @@ describe("Fungible token payments", () => {
       wallet1
     );
     expect(claimUnsuccessfulResponse.result).toBeOk(Cl.bool(true));
+  });
+
+  // New test cases for milestone 3 and 4 completion with FT payments and asset owner claim
+  it("should allow FT payments up to milestone 3 and allow the asset owner to claim", () => {
+    // 1. List the asset with FT as payment
+    const listing = Cl.tuple({
+      amt: Cl.uint(1000000000),
+      expiry: Cl.uint(10000),
+      price: Cl.uint(2), // price in mock-token
+      "payment-asset-contract": Cl.some(Cl.principal(mockToken))
+    });
+
+    const listAssetResponse = simnet.callPublicFn(
+      marketplace,
+      "list-asset-ft",
+      [
+        Cl.contractPrincipal(deployer, "mock-token-a"),
+        Cl.contractPrincipal(deployer, "mock-token-a"),
+        listing
+      ],
+      deployer
+    );
+    expect(listAssetResponse.result).toBeOk(Cl.bool(true));
+
+    const milestoneAmount1 = 249999999; // Amount to complete one milestone
+    const milestoneCompleltionAmount = 250000000;
+
+    // 2. Wallet1 reserves for Milestone 1
+    const reserve1Response = simnet.callPublicFn(
+      marketplaceFulfill,
+      "fulfil-ft-listing-ft",
+      [
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token'),
+        Cl.uint(milestoneAmount1)
+      ],
+      wallet1
+    );
+    expect(reserve1Response.result).toBeOk(Cl.bool(true));
+
+    // 3. Wallet2 reserves for Milestone 2
+    const reserve2Response = simnet.callPublicFn(
+      marketplaceFulfill,
+      "fulfil-ft-listing-ft",
+      [
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token'),
+        Cl.uint(milestoneCompleltionAmount)
+      ],
+      wallet2
+    );
+    expect(reserve2Response.result).toBeOk(Cl.bool(true));
+
+    // 4. Wallet3 reserves for Milestone 3
+    const reserve3Response = simnet.callPublicFn(
+      marketplaceFulfill,
+      "fulfil-ft-listing-ft",
+      [
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token'),
+        Cl.uint(milestoneCompleltionAmount)
+      ],
+      wallet3
+    );
+    expect(reserve3Response.result).toBeOk(Cl.bool(true));
+
+    // 5. Asset owner claims after milestone 3 completion
+    const assetOwnerClaimResponse = simnet.callPublicFn(
+      marketplace,
+      "asset-owner-claim-after-milestone-comp-ft",
+      [
+        Cl.contractPrincipal(deployer, "mock-token-a"),
+        Cl.contractPrincipal(deployer, "mock-token-a"),
+        Cl.contractPrincipal(deployer, "mock-token")
+      ],
+      deployer
+    );
+    expect(assetOwnerClaimResponse.result).toBeOk(Cl.bool(true));
+  });
+
+  it("should allow FT payments up to milestone 4 (full completion) and allow the asset owner to claim", () => {
+    // 1. List the asset with FT as payment
+    const listing = Cl.tuple({
+      amt: Cl.uint(1000000000),
+      expiry: Cl.uint(10000),
+      price: Cl.uint(2), // price in mock-token
+      "payment-asset-contract": Cl.some(Cl.principal(mockToken))
+    });
+
+    const listAssetResponse = simnet.callPublicFn(
+      marketplace,
+      "list-asset-ft",
+      [
+        Cl.contractPrincipal(deployer, "mock-token-a"),
+        Cl.contractPrincipal(deployer, "mock-token-a"),
+        listing
+      ],
+      deployer
+    );
+    expect(listAssetResponse.result).toBeOk(Cl.bool(true));
+
+    const milestoneAmount1 = 249999999; // Amount to complete one milestone
+    const milestoneCompleltionAmount = 250000000;
+
+    // 2. Wallet1 reserves for Milestone 1
+    let reserveResponse = simnet.callPublicFn(
+      marketplaceFulfill,
+      "fulfil-ft-listing-ft",
+      [
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token'),
+        Cl.uint(milestoneAmount1)
+      ],
+      wallet1
+    );
+    expect(reserveResponse.result).toBeOk(Cl.bool(true));
+
+    // 3. Wallet2 reserves for Milestone 2
+    reserveResponse = simnet.callPublicFn(
+      marketplaceFulfill,
+      "fulfil-ft-listing-ft",
+      [
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token'),
+        Cl.uint(milestoneCompleltionAmount)
+      ],
+      wallet2
+    );
+    expect(reserveResponse.result).toBeOk(Cl.bool(true));
+
+    // 4. Wallet3 reserves for Milestone 3
+    reserveResponse = simnet.callPublicFn(
+      marketplaceFulfill,
+      "fulfil-ft-listing-ft",
+      [
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token'),
+        Cl.uint(milestoneCompleltionAmount)
+      ],
+      wallet3
+    );
+    expect(reserveResponse.result).toBeOk(Cl.bool(true));
+
+    // 5. Wallet4 reserves for Milestone 4 (full completion)
+    reserveResponse = simnet.callPublicFn(
+      marketplaceFulfill,
+      "fulfil-ft-listing-ft",
+      [
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token-a'),
+        Cl.contractPrincipal(deployer, 'mock-token'),
+        Cl.uint(milestoneAmount1) // Using milestoneAmount1 to reach total amount close to 1e9
+      ],
+      wallet4
+    );
+    expect(reserveResponse.result).toBeOk(Cl.bool(true));
+
+    // 6. Asset owner claims after all milestones completion
+    const assetOwnerClaimResponse = simnet.callPublicFn(
+      marketplace,
+      "asset-owner-claim-after-milestone-comp-ft",
+      [
+        Cl.contractPrincipal(deployer, "mock-token-a"),
+        Cl.contractPrincipal(deployer, "mock-token-a"),
+        Cl.contractPrincipal(deployer, "mock-token")
+      ],
+      deployer
+    );
+    expect(assetOwnerClaimResponse.result).toBeOk(Cl.bool(true));
   });
 });
 
