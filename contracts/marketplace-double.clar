@@ -20,7 +20,7 @@
 (define-constant ERR_NOT_ADMIN (err u1003))
 (define-constant ERR_AMOUNT_NOT_EQUAL (err u1004))
 (define-constant ERR_AMOUNT_NOT_FOUND (err u1005))
-(define-constant ERR_NOT_EXPIRY (err u1000))
+(define-constant ERR_NOT_EXPIRY (err u1006))
 
 
 
@@ -28,14 +28,14 @@
 ;; cancelling and fulfiling errors
 (define-constant ERR_UNKNOWN_LISTING (err u2000))
 (define-constant ERR_UNAUTHORISED (err u2001))
-(define-constant ERR_LISTING_EXPIRED (err u2002))
+;; (define-constant ERR_LISTING_EXPIRED (err u2002))
 (define-constant ERR_FT_ASSET_MISMATCH (err u2003))
 (define-constant ERR_PAYMENT_ASSET_MISMATCH (err u2004))
-(define-constant ERR_MAKER_taker_EQUAL (err u2005))
-(define-constant ERR_UNINTENDED_taker (err u2006))
+;; (define-constant ERR_MAKER_taker_EQUAL (err u2005))
+;; (define-constant ERR_UNINTENDED_taker (err u2006))
 (define-constant ERR_ASSET_CONTRACT_NOT_WHITELISTED (err u2007))
 (define-constant ERR_PAYMENT_CONTRACT_NOT_WHITELISTED (err u2008))
-(define-constant ERR_AMOUNT_IS_BIGGER (err u2009))
+;; (define-constant ERR_AMOUNT_IS_BIGGER (err u2009))
 (define-constant ERR_USER_BOUGHT_NOTHING (err u2010))
 (define-constant ERR_LISTING_EXIST (err u2011))
 (define-constant ERR_MILESTONE_NOT_COMP (err u2012))
@@ -48,7 +48,7 @@
 
 ;; emergency and fee errors
 (define-constant ERR_CONTRACT_PAUSED (err u3000))
-(define-constant ERR_INSUFFICIENT_BALANCE (err u3001))
+;; (define-constant ERR_INSUFFICIENT_BALANCE (err u3001))
 
 (define-constant ERR_FT_AND_CALL_NOT_EQUAL (err u3002))
 (define-constant ERR_NOT_ASSET_OWNER (err u3003))
@@ -454,7 +454,7 @@
 )
 
 
-(define-public (reserve (ft-asset-contract principal) (asset-owner principal) (amt uint)) 
+(define-public (fulfil-listing-ft-stx (ft-asset-contract principal) (asset-owner principal) (amt uint)) 
   (let (
     (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr: ft-asset-contract}) ERR_UNKNOWN_LISTING))
     (listing-price (get price listing))
@@ -533,7 +533,7 @@
 ;; OPTIMIZED reserve-using-ft function
 ;; Consolidates three nearly-identical branches into a single execution path
 
-(define-public (reserve-using-ft (ft-asset-contract principal) (asset-owner principal) (payment-contract <ft-trait>) (amt uint))
+(define-public (fulfil-ft-listing-ft (ft-asset-contract principal) (asset-owner principal) (payment-contract <ft-trait>) (amt uint))
   (let (
     ;; Listing information
     (listing (unwrap! (map-get? listings-ft { maker: asset-owner, contractAddr: ft-asset-contract}) ERR_UNKNOWN_LISTING))

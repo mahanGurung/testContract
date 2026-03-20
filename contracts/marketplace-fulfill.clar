@@ -69,7 +69,7 @@
   )
     ;; Validate that the purchase can be fulfilled
     (try! (assert-can-fulfil-ft ft-asset-contract none listing))
-    (try! (contract-call? .marketplace reserve ft-asset-contract asset-owner amt))
+    (try! (contract-call? .marketplace fulfil-listing-ft-stx ft-asset-contract asset-owner amt))
     
     (ok true)
   )
@@ -96,7 +96,7 @@
       (some (contract-of payment-asset-contract))
       listing
     ))
-    (try! (contract-call? .marketplace reserve-using-ft  (contract-of ft-asset-contract) asset-owner payment-asset-contract amt))
+    (try! (contract-call? .marketplace fulfil-ft-listing-ft (contract-of ft-asset-contract) asset-owner payment-asset-contract amt))
     (ok true)
   )
   )
